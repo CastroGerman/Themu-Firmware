@@ -5,10 +5,18 @@
 /*
 *   app_main es una task tambien de prioridad idle+1
 */
+/*
+*   TODO: 
+*   programar otro timer pero con autoreload disable 
+*   para poder tomar la cuenta y usarla en la integral del giroscopio.
+*   https://www.luisllamas.es/arduino-orientacion-imu-mpu-6050/
+*/
 void app_main() 
 {
-    //InitGPIO();
-    //InitTimer(TIMER_GROUP_0, TIMER_0, TIMER_AUTORELOAD_EN, G0_TIMER0_INTERVAL_SEC);  
+    EST = 0.0;
+    E_EST = 0.06;
+    InitGPIO();
+    InitTimer(TIMER_GROUP_0, TIMER_0, TIMER_AUTORELOAD_EN, G0_TIMER0_INTERVAL_SEC);  
     InitI2C();
     //CrearSemaforos();
     CrearTareas();
@@ -18,8 +26,9 @@ void app_main()
     {
         //timer_get_counter_value(TIMER_GROUP_0,TIMER_0, &cuenta);
         //printf("Entró %d veces al MAIN \n timer count %lld \n \n", i++,cuenta);
-        printf("Entro %d al MAIN\n", i++);
-        vTaskDelay(5000/portTICK_RATE_MS); //1s
+        //printf("Entro %d al MAIN\n", i++);
+        E_EST = 0.06;
+        vTaskDelay(2000/portTICK_RATE_MS); //1s
     }
 
 }

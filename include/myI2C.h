@@ -11,8 +11,11 @@
 #define MASTER_CLK_SPEED 100000
 #define I2C_ADDRESS 0x68 // I2C address of MPU6050
 
-#define MPU6050_ACCEL_XOUT_H 0x3B
-#define MPU6050_PWR_MGMT_1   0x6B
+#define MPU6050_ACCEL_XOUT_H    0x3B
+#define MPU6050_GYRO_XOUT_H     0x43
+#define MPU6050_PWR_MGMT_1      0x6B
+#define MPU6050_GYRO_CONFIG     0x1B
+#define MPU6050_ACCEL_CONFIG    0x1C
 /*
  * The following registers contain the primary data we are interested in
  * 0x3B MPU6050_ACCEL_XOUT_H
