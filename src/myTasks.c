@@ -6,36 +6,18 @@
 #include "MadgwickAHRS.h"
 #include "math.h"
 
-xSemaphoreHandle sTestSemphr;     
-xTaskHandle thGPIO = NULL, thPeriodic = NULL, thMPU6050 = NULL;
 
-void CrearSemaforos(void)
-{
-    vSemaphoreCreateBinary(sTestSemphr);
-    //xSemaphoreTake(sTestSemphr,(portTickType) 1); //esta no le esta gustando por algun motivo.
-}
+xTaskHandle thGPIO = NULL, thPeriodic = NULL, thPeriodic1 = NULL, thMPU6050 = NULL;
 
 void CrearTareas(void)
 {
-    //xTaskCreate(tGPIO, (const char *) "tGPIO", configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 2UL), &thGPIO);
+    xTaskCreate(tGPIO, (const char *) "tGPIO", configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 2UL), &thGPIO);
     xTaskCreate(tPeriodic, (const char *) "tPeriodic", configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 1UL), &thPeriodic);
-    //xTaskCreate(tTestTask, (const char *) "tTestTask", configMINIMAL_STACK_SIZE*10, NULL,    (tskIDLE_PRIORITY + 1UL), (xTaskHandle *) NULL);
-    xTaskCreate(tMPU6050, (const char *) "tMPU6050", configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 1UL), &thMPU6050);
-}
-
-
-void tTestTask (void *pv)
-{
+    xTaskCreate(tPeriodic1, (const char *) "tPeriodic1", configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 1UL), &thPeriodic1);
     
-    static int i = 0;
-    while(1)
-    {
-        //xSemaphoreTake(sTick,portMAX_DELAY);
-        //gpio_set_level(GPIO_NUM_18, i%2);
-        printf("Entró %d veces al TEST \n", i++);
-        vTaskDelay(1000/portTICK_RATE_MS); //1s
-    }
+    //xTaskCreate(tMPU6050, (const char *) "tMPU6050", configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 1UL), &thMPU6050);
 }
+
 
 
 void tGPIO (void *pv)
@@ -66,21 +48,20 @@ void tPeriodic (void *pv)
         {
 
             //printf("Notificacion recibida en TASK2 del timer\n");
-           /* if(gpio_get_level(GPIO_NUM_2))//recordar que no se pueden leer OUTPUTS, solo INPUTS pins.
+            if(gpio_get_level(GPIO_NUM_2))//recordar que no se pueden leer OUTPUTS, solo INPUTS pins.
             {
-                printf("Apagando GPIO 18\n");
                 gpio_set_level(GPIO_NUM_18, 0);
             }
             else
             {
-                printf("Prendiendo GPIO 18\n");
                 gpio_set_level(GPIO_NUM_18, 1);
             }
-            */
-            uint64_t cuenta;
-            timer_get_counter_value(TIMER_GROUP_0, TIMER_0, &cuenta);
-            printf("la cuenta es %lld\n", cuenta/TIMER_SCALE);
+            
 
+            printf("Las cuentas al entrar a IRQ Timer0: %lld\n", myTimer[0].timer_counter_value);
+            timer_get_counter_value(TIMER_GROUP_0, TIMER_0, &myTimer[0].timer_counter_value);
+            printf("Las cuentas en la tarea Timer0: %lld\n", myTimer[0].timer_counter_value);
+       
         }
         else
         {
@@ -90,6 +71,33 @@ void tPeriodic (void *pv)
     }
     
 }
+
+
+
+void tPeriodic1 (void *pv)
+{
+    uint32_t notifycount = 0;
+    while (1)
+    {
+        notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);//con pdTRUE actua como semaforo binario, con pdFALSE como semaforo contador
+        if(notifycount == 1)
+        {
+            printf("Las cuentas al entrar a IRQ Timer1: %lld\n", myTimer[1].timer_counter_value);
+            timer_get_counter_value(TIMER_GROUP_0, TIMER_1, &myTimer[1].timer_counter_value);
+            printf("Las cuentas en la tarea Timer1: %lld\n", myTimer[1].timer_counter_value);
+            
+
+        }
+        else
+        {
+            printf("TIMEOUT esperando notificacion en periodic1\n");
+        }
+
+    }
+    
+}
+
+
 /*
 Master Write or Read?
 

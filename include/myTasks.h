@@ -12,8 +12,8 @@
 #define ACCEL_X_OFF 800.0f
 #define ACCEL_Y_OFF 100.0f
 #define ACCEL_Z_OFF 3400.0f
-extern xSemaphoreHandle sTestSemphr;
-extern xTaskHandle thGPIO, thPeriodic;
+
+extern xTaskHandle thGPIO, thPeriodic, thPeriodic1;
 extern double EST;
 extern double E_EST;
 
@@ -22,6 +22,7 @@ void CrearTareas(void);
 void tTestTask (void *pv); 
 void tGPIO (void *pv);
 void tPeriodic (void *pv);
+void tPeriodic1 (void *pv);
 void tMPU6050 (void *pv);
 void gyro_offset_calibration (double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset);
 

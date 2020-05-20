@@ -2,9 +2,9 @@
 #include "myGPIO.h"
 #include "myTimers.h"
 #include "myI2C.h"
-/*
-*   app_main es una task tambien de prioridad idle+1
-*/
+
+/* app_main is also a task with IDLE+1 priority */
+
 /*
 *   TODO: 
 *   programar otro timer pero con autoreload disable 
@@ -17,8 +17,9 @@ void app_main()
     E_EST = 0.06;
     InitGPIO();
     InitTimer(TIMER_GROUP_0, TIMER_0, TIMER_AUTORELOAD_EN, G0_TIMER0_INTERVAL_SEC);  
-    InitI2C();
-    //CrearSemaforos();
+    InitTimer(TIMER_GROUP_0, TIMER_1, TIMER_AUTORELOAD_DIS, G0_TIMER1_INTERVAL_SEC);
+    //InitI2C();
+
     CrearTareas();
     
     int i = 0;
@@ -28,7 +29,7 @@ void app_main()
         //printf("Entró %d veces al MAIN \n timer count %lld \n \n", i++,cuenta);
         //printf("Entro %d al MAIN\n", i++);
         E_EST = 0.06;
-        vTaskDelay(2000/portTICK_RATE_MS); //1s
+        vTaskDelay(1000/portTICK_RATE_MS); //1s
     }
 
 }
