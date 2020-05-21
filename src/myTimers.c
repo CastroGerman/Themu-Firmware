@@ -77,17 +77,26 @@ void IRAM_ATTR g0_timer0_isr_handler (void *pv)
 void IRAM_ATTR g0_timer1_isr_handler (void *pv)
 {
     TIMERG0.hw_timer[1].update = 1;
+
+
+
     myTimer[1].timer_counter_value = 
     ((uint64_t) TIMERG0.hw_timer[1].cnt_high) << 32 | TIMERG0.hw_timer[1].cnt_low;
 
     TIMERG0.int_clr_timers.t1 = 1; //Cleaning interrupt flag.
    
-    timer_set_counter_value(TIMER_GROUP_0, TIMER_1, 0x00000000ULL);
+    timer_set_counter_value(TIMER_GROUP_0, TIMER_1, 0x00000000ULL); //Why drift?
+    /*
+    TIMERG0.hw_timer[1].cnt_high = 0;
+    TIMERG0.hw_timer[1].cnt_low = 0;
+    TIMERG0.hw_timer[1].reload = 1;
+    */
 
+    // Solution that doesn't drift:
     //myTimer[1].timer_counter_value += (uint64_t) (G0_TIMER1_INTERVAL_SEC * TIMER_SCALE);
     //TIMERG0.hw_timer[1].alarm_high = (uint32_t) (myTimer[1].timer_counter_value >> 32);
     //TIMERG0.hw_timer[1].alarm_low = (uint32_t) myTimer[1].timer_counter_value;
- 
+
     TIMERG0.hw_timer[1].config.alarm_en = TIMER_ALARM_EN;  //Reload alarm
     
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;

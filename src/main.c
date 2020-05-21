@@ -10,6 +10,13 @@
 *   programar otro timer pero con autoreload disable 
 *   para poder tomar la cuenta y usarla en la integral del giroscopio.
 *   https://www.luisllamas.es/arduino-orientacion-imu-mpu-6050/
+*
+*   Hecho!
+*
+*   TODO:
+*   Organizar todo el proyecto. Separar las Task en sus respectivos .c.
+*   Separar I2C de MPU6050.
+*   Invertir ACCEL y GYRO SCALES para multiplicar en lugar de dividir? mas intuitivo.
 */
 void app_main() 
 {
@@ -18,11 +25,11 @@ void app_main()
     InitGPIO();
     InitTimer(TIMER_GROUP_0, TIMER_0, TIMER_AUTORELOAD_EN, G0_TIMER0_INTERVAL_SEC);  
     InitTimer(TIMER_GROUP_0, TIMER_1, TIMER_AUTORELOAD_DIS, G0_TIMER1_INTERVAL_SEC);
-    //InitI2C();
+    InitI2C();
 
     CrearTareas();
     
-    int i = 0;
+    //int i = 0;
     while(1)
     {
         //timer_get_counter_value(TIMER_GROUP_0,TIMER_0, &cuenta);

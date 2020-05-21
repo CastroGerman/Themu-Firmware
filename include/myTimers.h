@@ -12,7 +12,7 @@
 #define TIMER_DIVIDER           16  //  Hardware timer clock divider (revisar bien los valores admisibles)
 #define TIMER_SCALE             (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
 #define G0_TIMER0_INTERVAL_SEC  (3.00) // sample test interval for the first timer
-#define G0_TIMER1_INTERVAL_SEC  (5.00)
+#define G0_TIMER1_INTERVAL_SEC  (2.00)
 
 typedef struct myTimers
 {

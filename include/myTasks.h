@@ -8,10 +8,6 @@
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 
-#define G_CALC_VAL 16384.0f
-#define ACCEL_X_OFF 800.0f
-#define ACCEL_Y_OFF 100.0f
-#define ACCEL_Z_OFF 3400.0f
 
 extern xTaskHandle thGPIO, thPeriodic, thPeriodic1;
 extern double EST;
@@ -25,7 +21,8 @@ void tPeriodic (void *pv);
 void tPeriodic1 (void *pv);
 void tMPU6050 (void *pv);
 void gyro_offset_calibration (double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset);
-
+void offsetCalibration (double *accel_x_offset, double *accel_y_offset, double *accel_z_offset, 
+double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset);
 
 void Kalman_1D (double MEA, double E_MEA);
 

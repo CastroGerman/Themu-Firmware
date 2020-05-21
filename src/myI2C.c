@@ -1,4 +1,5 @@
 #include "myI2C.h"
+#include "MPU6050.h"
 
 void InitI2C (void)
 {
@@ -30,7 +31,7 @@ void InitI2C (void)
 	ESP_ERROR_CHECK(i2c_master_start(cmd)); 
 	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1)); 
 	i2c_master_write_byte(cmd, MPU6050_GYRO_CONFIG, 1); //dato
-	i2c_master_write_byte(cmd, 0x18, 1); 
+	i2c_master_write_byte(cmd, FS_SEL<<3 , 1); 
 	ESP_ERROR_CHECK(i2c_master_stop(cmd)); 
 	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS); 
 	i2c_cmd_link_delete(cmd); 
@@ -40,7 +41,7 @@ void InitI2C (void)
 	ESP_ERROR_CHECK(i2c_master_start(cmd)); 
 	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1)); 
 	i2c_master_write_byte(cmd, MPU6050_ACCEL_CONFIG, 1); //dato
-	i2c_master_write_byte(cmd, 0x00, 1); 
+	i2c_master_write_byte(cmd, AFS_SEL<<3 , 1); 
 	ESP_ERROR_CHECK(i2c_master_stop(cmd)); 
 	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS); 
 	i2c_cmd_link_delete(cmd); 

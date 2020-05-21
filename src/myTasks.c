@@ -2,6 +2,7 @@
 #include "myTasks.h"
 #include "myI2C.h"
 #include "myTimers.h"
+#include "MPU6050.h"
 
 #include "MadgwickAHRS.h"
 #include "math.h"
@@ -14,8 +15,7 @@ void CrearTareas(void)
     xTaskCreate(tGPIO, (const char *) "tGPIO", configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 2UL), &thGPIO);
     xTaskCreate(tPeriodic, (const char *) "tPeriodic", configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 1UL), &thPeriodic);
     xTaskCreate(tPeriodic1, (const char *) "tPeriodic1", configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 1UL), &thPeriodic1);
-    
-    //xTaskCreate(tMPU6050, (const char *) "tMPU6050", configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 1UL), &thMPU6050);
+    xTaskCreate(tMPU6050, (const char *) "tMPU6050", configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 1UL), &thMPU6050);
 }
 
 
@@ -58,9 +58,9 @@ void tPeriodic (void *pv)
             }
             
 
-            printf("Las cuentas al entrar a IRQ Timer0: %lld\n", myTimer[0].timer_counter_value);
-            timer_get_counter_value(TIMER_GROUP_0, TIMER_0, &myTimer[0].timer_counter_value);
-            printf("Las cuentas en la tarea Timer0: %lld\n", myTimer[0].timer_counter_value);
+            //printf("Las cuentas al entrar a IRQ Timer0: %lld\n", myTimer[0].timer_counter_value);
+            //timer_get_counter_value(TIMER_GROUP_0, TIMER_0, &myTimer[0].timer_counter_value);
+            //printf("Las cuentas en la tarea Timer0: %lld\n", myTimer[0].timer_counter_value);
        
         }
         else
@@ -72,8 +72,6 @@ void tPeriodic (void *pv)
     
 }
 
-
-
 void tPeriodic1 (void *pv)
 {
     uint32_t notifycount = 0;
@@ -82,11 +80,10 @@ void tPeriodic1 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);//con pdTRUE actua como semaforo binario, con pdFALSE como semaforo contador
         if(notifycount == 1)
         {
-            printf("Las cuentas al entrar a IRQ Timer1: %lld\n", myTimer[1].timer_counter_value);
-            timer_get_counter_value(TIMER_GROUP_0, TIMER_1, &myTimer[1].timer_counter_value);
-            printf("Las cuentas en la tarea Timer1: %lld\n", myTimer[1].timer_counter_value);
+            //printf("Las cuentas al entrar a IRQ Timer1: %lld\n", myTimer[1].timer_counter_value);
+            //timer_get_counter_value(TIMER_GROUP_0, TIMER_1, &myTimer[1].timer_counter_value);
+            //printf("Las cuentas en la tarea Timer1: %lld\n", myTimer[1].timer_counter_value);
             
-
         }
         else
         {
@@ -109,12 +106,14 @@ void tMPU6050 (void *pv)
 {
   	uint8_t data[14];
 	short accel_x, accel_y, accel_z, temp, gyro_x, gyro_y, gyro_z;
-    double gyro_x_offset, gyro_y_offset, gyro_z_offset;
+    double accel_x_offset, accel_y_offset, accel_z_offset, temp_offset, 
+    gyro_x_offset, gyro_y_offset, gyro_z_offset;
 
     double faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z;
 
-    gyro_offset_calibration(&gyro_x_offset,&gyro_y_offset,&gyro_z_offset);
-
+    //gyro_offset_calibration(&gyro_x_offset,&gyro_y_offset,&gyro_z_offset);
+    offsetCalibration(&accel_x_offset,&accel_y_offset,&accel_z_offset, &temp_offset,
+    &gyro_x_offset,&gyro_y_offset,&gyro_z_offset);
 
     i2c_cmd_handle_t cmd;		//command link
 
@@ -165,44 +164,43 @@ void tMPU6050 (void *pv)
 		gyro_z 	= (data[12] << 8) | data[13];
 
         // Read gyro values and convert to Radians per second
-        fgyro_x  =  (gyro_x - (short)gyro_x_offset)  / 1877.468103f;
-        fgyro_y  =  (gyro_y - (short)gyro_y_offset)  / 1877.468103f;
-        fgyro_z  =  (gyro_z - (short)gyro_z_offset)  / 1877.468103f;
-        
-        // Read accel values  and convert relative to 1G
-       // faccel_x = (accel_x / G_CALC_VAL )/ 2.0f;
-       // faccel_y = (accel_y / G_CALC_VAL )/ 2.0f;
-       // faccel_z = (accel_z / G_CALC_VAL )/ 2.0f;
+        fgyro_x  =  (gyro_x - (short)gyro_x_offset) * DEG_TO_RAD * GYRO_SCALE;
+        fgyro_y  =  (gyro_y - (short)gyro_y_offset) * DEG_TO_RAD * GYRO_SCALE;
+        fgyro_z  =  (gyro_z - (short)gyro_z_offset) * DEG_TO_RAD * GYRO_SCALE;
+        // As datasheet says:
+        // Temperature in degrees C = (TEMP_OUT Register Value as a signed quantity)/340 + 36.53
+        // As I say:
+        ftemp = (temp - (short)temp_offset) * TEMP_SCALE;
+        // Read accel values and convert to G force.
+        faccel_x = (accel_x - (short)accel_x_offset) * ACCEL_SCALE;
+        faccel_y = (accel_y - (short)accel_y_offset) * ACCEL_SCALE;
+        faccel_z = (accel_z - (short)accel_z_offset) * ACCEL_SCALE;
 
-        faccel_x = (accel_x - ACCEL_X_OFF) / G_CALC_VAL;
-        faccel_y = (accel_y - ACCEL_Y_OFF) / G_CALC_VAL;
-        faccel_z = (accel_z - ACCEL_Z_OFF) / G_CALC_VAL;
-
-        ftemp = temp + 4350.0f;
 
 		//printf("accel_x: %d, accel_y: %d, accel_z: %d | temp: %d | gryo_x: %d, gryo_y: %d, gryo_z: %d\n", (int)accel_x, (int)accel_y, (int)accel_z, (short)temp, (int)gyro_x,(int) gyro_y, (short)gyro_z);
         //printf("faccel_x: %f, faccel_y: %f, faccel_z: %f | ftemp: %f | fgryo_x: %f, fgryo_y: %f, fgryo_z: %f\n", faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
 		//printf("fgryo_x_off: %f, fgryo_y_off: %f, fgryo_z_off: %f\n", gyro_x_offset, gyro_y_offset, gyro_z_offset);
 
-        //printf("faccel_x: %f, faccel_y: %f, faccel_z: %f | ftemp: %f | fgryo_x: %f, fgryo_y: %f, fgryo_z: %f\n", faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
+        printf("faccel_x: %f \tfaccel_y: %f \tfaccel_z: %f \tftemp: %f \tfgryo_x: %f \tfgryo_y: %f \tfgryo_z: %f\n",
+        faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
         
+        //printf ("temp cruda: %d \ttemp offset: %f \tTemp float: %f\n",temp,temp_offset,ftemp);
 
         //MadgwickAHRSupdateIMU(fgyro_x, fgyro_y, fgyro_z, faccel_x, faccel_y, faccel_z);
-        
         //printf("Q0 = %f, Q1 = %f, Q2 = %f, Q3 = %f\n", q0,q1,q2,q3);
 
        
         Kalman_1D (faccel_x, (double)0.04);
 
-        float accel_ang_x = atan(faccel_x / sqrt(pow(faccel_y, 2) + pow(faccel_z, 2)))*(180.0 / 3.14);
-        float accel_ang_y = atan(faccel_y / sqrt(pow(faccel_x, 2) + pow(faccel_z, 2)))*(180.0 / 3.14);
-        float accel_ang_z = atan(faccel_z / sqrt(pow(faccel_x, 2) + pow(faccel_y, 2)))*(180.0 / 3.14);
+        //float accel_ang_x = atan(faccel_x / sqrt(pow(faccel_y, 2) + pow(faccel_z, 2)))*(180.0 / 3.14);
+        //float accel_ang_y = atan(faccel_y / sqrt(pow(faccel_x, 2) + pow(faccel_z, 2)))*(180.0 / 3.14);
+        //float accel_ang_z = atan(faccel_z / sqrt(pow(faccel_x, 2) + pow(faccel_y, 2)))*(180.0 / 3.14);
  
 
         //printf("%f,%f,\n", faccel_x,EST);
 
-        printf("%f,%f,%f\n",accel_ang_x,accel_ang_y,accel_ang_z);
-
+        //printf("%f,%f,%f\n",accel_ang_x,accel_ang_y,accel_ang_z);
+        //printf("%f \t %f\n", ACCEL_SCALE, GYRO_SCALE);
         vTaskDelay(1000/portTICK_PERIOD_MS);
 	}
 }
@@ -251,6 +249,68 @@ void gyro_offset_calibration (double *gyro_x_offset,double *gyro_y_offset,double
     *gyro_x_offset /= 64;
     *gyro_y_offset /= 64;
     *gyro_z_offset /= 64;
+}
+
+
+void offsetCalibration (double *accel_x_offset, double *accel_y_offset, double *accel_z_offset, 
+double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset)
+{
+    uint8_t data[14], cal_iterations;
+	i2c_cmd_handle_t cmd;		//command link
+
+    for (cal_iterations = 0; cal_iterations < CAL_ITERATIONS; cal_iterations++)
+    {
+        cmd = i2c_cmd_link_create();
+        ESP_ERROR_CHECK(i2c_master_start(cmd));
+        ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+        ESP_ERROR_CHECK(i2c_master_write_byte(cmd, MPU6050_ACCEL_XOUT_H, 1));
+        ESP_ERROR_CHECK(i2c_master_stop(cmd));
+        ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
+        i2c_cmd_link_delete(cmd);
+        cmd = i2c_cmd_link_create();
+        ESP_ERROR_CHECK(i2c_master_start(cmd));
+        ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
+
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data,   0));//MPU6050_ACCEL_XOUT_H
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+1, 0));//MPU6050_ACCEL_XOUT_L
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+2, 0));//MPU6050_ACCEL_YOUT_H
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+3, 0));//MPU6050_ACCEL_YOUT_L
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+4, 0));//MPU6050_ACCEL_ZOUT_H
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+5, 0));//MPU6050_ACCEL_ZOUT_L
+
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+6, 0));//MPU6050_TEMP_OUT_H
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+7, 0));//MPU6050_TEMP_OUT_L
+
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+8, 0));//MPU6050_GYRO_XOUT_H
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+9, 0));//MPU6050_GYRO_XOUT_L
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+10,0));//MPU6050_GYRO_YOUT_H
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+11,0));//MPU6050_GYRO_YOUT_L
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+12,0));//MPU6050_GYRO_ZOUT_H
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+13,1));//MPU6050_GYRO_ZOUT_L 
+        ESP_ERROR_CHECK(i2c_master_stop(cmd));
+        ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
+        i2c_cmd_link_delete(cmd);
+
+        *accel_x_offset += ((data[0] << 8) | data[1]);
+		*accel_y_offset += ((data[2] << 8) | data[3]);
+		*accel_z_offset += ((data[4] << 8) | data[5]);
+		*temp_offset    += ((data[6] << 8) | data[7]);
+        *gyro_x_offset  += ((data[8] << 8) | data[9]);
+        *gyro_y_offset  += ((data[10] << 8) | data[11]);
+        *gyro_z_offset  += ((data[12] << 8) | data[13]);
+    }  
+    
+    *accel_x_offset /= CAL_ITERATIONS;
+    *accel_y_offset /= CAL_ITERATIONS;
+    *accel_z_offset /= CAL_ITERATIONS;
+    *temp_offset    /= CAL_ITERATIONS;
+    *gyro_x_offset  /= CAL_ITERATIONS;
+    *gyro_y_offset  /= CAL_ITERATIONS;
+    *gyro_z_offset  /= CAL_ITERATIONS;
+    if (*accel_x_offset > 16384.0f){*accel_x_offset -= 16384.0f;}
+    if (*accel_y_offset > 16384.0f){*accel_y_offset -= 16384.0f;}
+    if (*accel_z_offset > 16384.0f){*accel_z_offset -= 16384.0f;}
+
 }
 
 double EST;
