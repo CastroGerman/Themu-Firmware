@@ -1,9 +1,9 @@
 #include "myTimers.h"
-#include "myTasks.h"
+#include "myGPIO.h"
 
 
 myTimers_t myTimer[2];
-uint64_t cuentat0, cuentat1;
+xTaskHandle thG0Timer0 = NULL, thG0Timer1 = NULL;
 
 void InitTimer (int _timer_group, int _timer_index, bool _auto_reload, double _timer_interval_sec)
 {
@@ -50,15 +50,15 @@ the documentation page for the port in use.
 */
 void IRAM_ATTR g0_timer0_isr_handler (void *pv)
 {
-    TIMERG0.hw_timer[0].update = 1;
-    myTimer[0].timer_counter_value = 
-    ((uint64_t) TIMERG0.hw_timer[0].cnt_high) << 32 | TIMERG0.hw_timer[0].cnt_low;
+    TIMERG0.hw_timer[TIMER_0].update = 1; //To read registers
+    myTimer[TIMER_0].timer_counter_value = 
+    ((uint64_t) TIMERG0.hw_timer[TIMER_0].cnt_high) << 32 | TIMERG0.hw_timer[TIMER_0].cnt_low;
 
     TIMERG0.int_clr_timers.t0 = 1; //Cleaning interrupt flag.
-    TIMERG0.hw_timer[0].config.alarm_en = TIMER_ALARM_EN;  //Reload alarm
+    TIMERG0.hw_timer[TIMER_0].config.alarm_en = TIMER_ALARM_EN;  //Reload alarm
 
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    vTaskNotifyGiveFromISR(thPeriodic, &xHigherPriorityTaskWoken);
+    vTaskNotifyGiveFromISR(thG0Timer0, &xHigherPriorityTaskWoken);
     if(xHigherPriorityTaskWoken != pdFALSE)
     {
         /* If xHigherPriorityTaskWoken is now set to pdTRUE then a context switch
@@ -69,24 +69,21 @@ void IRAM_ATTR g0_timer0_isr_handler (void *pv)
         // We can force a context switch here.  Context switching from an
         // ISR uses port specific syntax.  Check the demo task for your port
         // to find the syntax required.
-        //vTaskSwitchContext(); revisar bien como.
+        //vTaskSwitchContext(); ?? Investigate
     }
     
 }
 
 void IRAM_ATTR g0_timer1_isr_handler (void *pv)
 {
-    TIMERG0.hw_timer[1].update = 1;
+    TIMERG0.hw_timer[TIMER_1].update = 1;
+    myTimer[TIMER_1].timer_counter_value = 
+    ((uint64_t) TIMERG0.hw_timer[TIMER_1].cnt_high) << 32 | TIMERG0.hw_timer[TIMER_1].cnt_low;
 
-
-
-    myTimer[1].timer_counter_value = 
-    ((uint64_t) TIMERG0.hw_timer[1].cnt_high) << 32 | TIMERG0.hw_timer[1].cnt_low;
-
-    TIMERG0.int_clr_timers.t1 = 1; //Cleaning interrupt flag.
+    TIMERG0.int_clr_timers.t1 = 1; 
    
     timer_set_counter_value(TIMER_GROUP_0, TIMER_1, 0x00000000ULL); //Why drift?
-    /*
+    /* Drift as well. The same way.
     TIMERG0.hw_timer[1].cnt_high = 0;
     TIMERG0.hw_timer[1].cnt_low = 0;
     TIMERG0.hw_timer[1].reload = 1;
@@ -97,13 +94,64 @@ void IRAM_ATTR g0_timer1_isr_handler (void *pv)
     //TIMERG0.hw_timer[1].alarm_high = (uint32_t) (myTimer[1].timer_counter_value >> 32);
     //TIMERG0.hw_timer[1].alarm_low = (uint32_t) myTimer[1].timer_counter_value;
 
-    TIMERG0.hw_timer[1].config.alarm_en = TIMER_ALARM_EN;  //Reload alarm
+    TIMERG0.hw_timer[TIMER_1].config.alarm_en = TIMER_ALARM_EN;
     
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    vTaskNotifyGiveFromISR(thPeriodic1, &xHigherPriorityTaskWoken);
+    vTaskNotifyGiveFromISR(thG0Timer1, &xHigherPriorityTaskWoken);
     if(xHigherPriorityTaskWoken != pdFALSE){}
     
 }
 
 
+void tG0Timer0 (void *pv)
+{
+    uint32_t notifycount = 0;
+    while (1)
+    {
+        notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        if(notifycount == 1)
+        {
 
+            //printf("Notificacion recibida en TASK2 del timer\n");
+            if(gpio_get_level(GPIO_NUM_2))//Remember that u can't read OUTPUTS, only INPUTS.
+            {
+                gpio_set_level(GPIO_NUM_18, 0);
+            }
+            else
+            {
+                gpio_set_level(GPIO_NUM_18, 1);
+            }
+            
+            //printf("Las cuentas al entrar a IRQ Timer0: %lld\n", myTimer[0].timer_counter_value);
+            //timer_get_counter_value(TIMER_GROUP_0, TIMER_0, &myTimer[0].timer_counter_value);
+            //printf("Las cuentas en la tarea Timer0: %lld\n", myTimer[0].timer_counter_value);
+        }
+        else
+        {
+            printf("TIMEOUT esperando notificacion en TASK2\n");
+        }
+
+    }
+    
+}
+
+void tG0Timer1 (void *pv)
+{
+    uint32_t notifycount = 0;
+    while (1)
+    {
+        notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        if(notifycount == 1)
+        {
+            //printf("Las cuentas al entrar a IRQ Timer1: %lld\n", myTimer[1].timer_counter_value);
+            //timer_get_counter_value(TIMER_GROUP_0, TIMER_1, &myTimer[1].timer_counter_value);
+            //printf("Las cuentas en la tarea Timer1: %lld\n", myTimer[1].timer_counter_value);
+        }
+        else
+        {
+            printf("TIMEOUT esperando notificacion en periodic1\n");
+        }
+
+    }
+    
+}
