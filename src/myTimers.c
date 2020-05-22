@@ -1,6 +1,6 @@
 #include "myTimers.h"
 #include "myGPIO.h"
-
+#include "MPU6050.h"
 
 myTimers_t myTimer[2];
 xTaskHandle thG0Timer0 = NULL, thG0Timer1 = NULL;
@@ -122,13 +122,14 @@ void tG0Timer0 (void *pv)
                 gpio_set_level(GPIO_NUM_18, 1);
             }
             
+            xTaskNotify(thMPU6050, 1, eSetValueWithOverwrite);
             //printf("Las cuentas al entrar a IRQ Timer0: %lld\n", myTimer[0].timer_counter_value);
             //timer_get_counter_value(TIMER_GROUP_0, TIMER_0, &myTimer[0].timer_counter_value);
             //printf("Las cuentas en la tarea Timer0: %lld\n", myTimer[0].timer_counter_value);
         }
         else
         {
-            printf("TIMEOUT esperando notificacion en TASK2\n");
+            printf("TIMEOUT esperando notificacion en tG0Timer0\n");
         }
 
     }
@@ -149,7 +150,7 @@ void tG0Timer1 (void *pv)
         }
         else
         {
-            printf("TIMEOUT esperando notificacion en periodic1\n");
+            printf("TIMEOUT esperando notificacion en tG0Timer1\n");
         }
 
     }

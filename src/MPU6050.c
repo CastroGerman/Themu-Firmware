@@ -1,5 +1,6 @@
 #include "MPU6050.h"
 #include "myI2C.h"
+#include "myTimers.h"
 #include <math.h>
 
 
@@ -142,7 +143,7 @@ void Kalman_1D (double MEA, double E_MEA)
 
 void displayAngles (double *faccel_x, double *faccel_y, double *faccel_z)
 {
-    printf("XAng: %f \tYAng: %f \tZAng: %f\n",
+    printf("AXAng: %f \tAYAng: %f \tAZAng: %f\n",
     getAccelXAngle (faccel_x, faccel_y, faccel_z),
     getAccelYAngle (faccel_x, faccel_y, faccel_z),
     getAccelZAngle (faccel_x, faccel_y, faccel_z));
@@ -159,10 +160,17 @@ void displayKalman (double *faccel)
 */
 void tMPU6050 (void *pv)
 {
+    uint32_t notifycount = 0;
+
   	uint8_t data[14];
+    // Maybe changing for arrays and make it less explicit?
 	short accel_x, accel_y, accel_z, temp, gyro_x, gyro_y, gyro_z; //Raw Register Values
     double accel_x_offset, accel_y_offset, accel_z_offset, temp_offset, gyro_x_offset, gyro_y_offset, gyro_z_offset;
     double faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z; //Processed Register Values
+
+    static double gyro_x_ang,gyro_y_ang,gyro_z_ang;
+    static double roll,pitch,yaw;
+
 
     offsetCalibration(&accel_x_offset,&accel_y_offset,&accel_z_offset,
     &temp_offset,&gyro_x_offset,&gyro_y_offset,&gyro_z_offset);
@@ -170,68 +178,87 @@ void tMPU6050 (void *pv)
     i2c_cmd_handle_t cmd;		//command link
 
 	while(1) {
-		// Tell the MPU6050 to position the internal register pointer to register MPU6050_ACCEL_XOUT_H.
-		cmd = i2c_cmd_link_create();
-		ESP_ERROR_CHECK(i2c_master_start(cmd));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (MPU6050_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, MPU6050_ACCEL_XOUT_H, NACK));
-		ESP_ERROR_CHECK(i2c_master_stop(cmd));
-		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
-		i2c_cmd_link_delete(cmd);
+        notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        if(notifycount == 1)
+        {
+            // Tell the MPU6050 to position the internal register pointer to register MPU6050_ACCEL_XOUT_H.
+            cmd = i2c_cmd_link_create();
+            ESP_ERROR_CHECK(i2c_master_start(cmd));
+            ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (MPU6050_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+            ESP_ERROR_CHECK(i2c_master_write_byte(cmd, MPU6050_ACCEL_XOUT_H, NACK));
+            ESP_ERROR_CHECK(i2c_master_stop(cmd));
+            ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
+            i2c_cmd_link_delete(cmd);
 
-		cmd = i2c_cmd_link_create();
-		ESP_ERROR_CHECK(i2c_master_start(cmd));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (MPU6050_ADDRESS << 1) | I2C_MASTER_READ, 1));
+            cmd = i2c_cmd_link_create();
+            ESP_ERROR_CHECK(i2c_master_start(cmd));
+            ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (MPU6050_ADDRESS << 1) | I2C_MASTER_READ, 1));
 
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data,   ACK));//MPU6050_ACCEL_XOUT_H
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+1, ACK));//MPU6050_ACCEL_XOUT_L
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+2, ACK));//MPU6050_ACCEL_YOUT_H
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+3, ACK));//MPU6050_ACCEL_YOUT_L
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+4, ACK));//MPU6050_ACCEL_ZOUT_H
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+5, ACK));//MPU6050_ACCEL_ZOUT_L
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data,   ACK));//MPU6050_ACCEL_XOUT_H
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+1, ACK));//MPU6050_ACCEL_XOUT_L
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+2, ACK));//MPU6050_ACCEL_YOUT_H
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+3, ACK));//MPU6050_ACCEL_YOUT_L
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+4, ACK));//MPU6050_ACCEL_ZOUT_H
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+5, ACK));//MPU6050_ACCEL_ZOUT_L
 
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+6, ACK));//MPU6050_TEMP_OUT_H
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+7, ACK));//MPU6050_TEMP_OUT_L
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+6, ACK));//MPU6050_TEMP_OUT_H
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+7, ACK));//MPU6050_TEMP_OUT_L
 
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+8, ACK));//MPU6050_GYRO_XOUT_H
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+9, ACK));//MPU6050_GYRO_XOUT_L
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+10,ACK));//MPU6050_GYRO_YOUT_H
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+11,ACK));//MPU6050_GYRO_YOUT_L
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+12,ACK));//MPU6050_GYRO_ZOUT_H
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+13,NACK));//MPU6050_GYRO_ZOUT_L 
-        //Send ACK(0) n-1 times and end with NAK(1) on the last sending.
-		//i2c_master_read(cmd, data, sizeof(data), 1);
-		ESP_ERROR_CHECK(i2c_master_stop(cmd));
-		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
-		i2c_cmd_link_delete(cmd);
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+8, ACK));//MPU6050_GYRO_XOUT_H
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+9, ACK));//MPU6050_GYRO_XOUT_L
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+10,ACK));//MPU6050_GYRO_YOUT_H
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+11,ACK));//MPU6050_GYRO_YOUT_L
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+12,ACK));//MPU6050_GYRO_ZOUT_H
+            ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+13,NACK));//MPU6050_GYRO_ZOUT_L 
+            //Send ACK(0) n-1 times and end with NAK(1) on the last sending.
+            //i2c_master_read(cmd, data, sizeof(data), 1);
+            ESP_ERROR_CHECK(i2c_master_stop(cmd));
+            ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
+            i2c_cmd_link_delete(cmd);
 
-		accel_x = (data[0] << 8) | data[1];
-		accel_y = (data[2] << 8) | data[3];
-		accel_z = (data[4] << 8) | data[5];
-		temp 	= (data[6] << 8) | data[7];
-		gyro_x 	= (data[8] << 8) | data[9];
-		gyro_y 	= (data[10] << 8) | data[11];
-		gyro_z 	= (data[12] << 8) | data[13];
+            accel_x = (data[0] << 8) | data[1];
+            accel_y = (data[2] << 8) | data[3];
+            accel_z = (data[4] << 8) | data[5];
+            temp 	= (data[6] << 8) | data[7];
+            gyro_x 	= (data[8] << 8) | data[9];
+            gyro_y 	= (data[10] << 8) | data[11];
+            gyro_z 	= (data[12] << 8) | data[13];
 
-        // Read gyro values and convert to Radians per second
-        fgyro_x  =  (gyro_x - (short)gyro_x_offset) * DEG_TO_RAD * GYRO_SCALE;
-        fgyro_y  =  (gyro_y - (short)gyro_y_offset) * DEG_TO_RAD * GYRO_SCALE;
-        fgyro_z  =  (gyro_z - (short)gyro_z_offset) * DEG_TO_RAD * GYRO_SCALE;
-        // As datasheet says:
-        // Temperature in degrees C = (TEMP_OUT Register Value as a signed quantity)/340 + 36.53
-        // As I say:
-        ftemp = (temp - (short)temp_offset) * TEMP_SCALE;
-        // Read accel values and convert to G force.
-        faccel_x = (accel_x - (short)accel_x_offset) * ACCEL_SCALE;
-        faccel_y = (accel_y - (short)accel_y_offset) * ACCEL_SCALE;
-        faccel_z = (accel_z - (short)accel_z_offset) * ACCEL_SCALE;
+            // Read gyro values and convert to Radians per second
+            fgyro_x  =  (gyro_x - (short)gyro_x_offset) * DEG_TO_RAD * GYRO_SCALE;
+            fgyro_y  =  (gyro_y - (short)gyro_y_offset) * DEG_TO_RAD * GYRO_SCALE;
+            fgyro_z  =  (gyro_z - (short)gyro_z_offset) * DEG_TO_RAD * GYRO_SCALE;
+            // As datasheet says:
+            // Temperature in degrees C = (TEMP_OUT Register Value as a signed quantity)/340 + 36.53
+            // As I say:
+            ftemp = (temp - (short)temp_offset) * TEMP_SCALE;
+            // Read accel values and convert to G force.
+            faccel_x = (accel_x - (short)accel_x_offset) * ACCEL_SCALE;
+            faccel_y = (accel_y - (short)accel_y_offset) * ACCEL_SCALE;
+            faccel_z = (accel_z - (short)accel_z_offset) * ACCEL_SCALE;
 
+            
+            //printf("faccel_x: %f \tfaccel_y: %f \tfaccel_z: %f \tftemp: %f \tfgryo_x: %f \tfgryo_y: %f \tfgryo_z: %f\n",
+            //faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
+            
+            // Error that would tend to drift: zero crossing
+            gyro_x_ang = fgyro_x*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
+            gyro_y_ang = fgyro_y*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
+            gyro_z_ang = fgyro_z*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
+
+            printf("GXAng: %f \tGYAng: %f \tGZAng: %f \n",gyro_x_ang,gyro_y_ang,gyro_z_ang);
+            displayAngles(&faccel_x, &faccel_y, &faccel_z);
+            roll = 0.90*(roll + gyro_x_ang) + 0.1*getAccelYAngle (&faccel_x, &faccel_y, &faccel_z);
+            pitch = 0.90*(pitch + gyro_y_ang) - 0.1*getAccelXAngle (&faccel_x, &faccel_y, &faccel_z);
+            yaw = 0.90*(yaw + gyro_z_ang) + 0.1*getAccelYAngle (&faccel_x, &faccel_y, &faccel_z);
+
+            printf("roll: %f \t pitch: %f \t yaw: %f \n",roll,pitch,yaw);
+            
+        }
+        else
+        {
+            printf("TIMEOUT esperando notificacion en tMPU6050\n");
+        }
         
-        //printf("faccel_x: %f \tfaccel_y: %f \tfaccel_z: %f \tftemp: %f \tfgryo_x: %f \tfgryo_y: %f \tfgryo_z: %f\n",
-        //faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
-        
-        displayAngles(&faccel_x,&faccel_y,&faccel_z);
-
-        vTaskDelay(1000/portTICK_PERIOD_MS);
 	}
 }

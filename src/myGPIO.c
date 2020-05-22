@@ -61,7 +61,7 @@ void tGPIO (void *pv)
         }
         else
         {
-            //printf("TIMEOUT esperando notificacion en TASK1\n");
+            printf("TIMEOUT esperando notificacion en tGPIO\n");
         }
 
     }
