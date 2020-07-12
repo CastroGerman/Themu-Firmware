@@ -60,7 +60,6 @@
 #define ACCEL_Z_OFF (3400.0f/ACCEL_SCALE/16384.0f)
 
 extern xTaskHandle thMPU6050;
-extern double EST, E_EST; //For Kalman_1D
 
 void InitMPU6050 (void);
 void offsetCalibration (double *accel_x_offset, double *accel_y_offset, double *accel_z_offset, 
