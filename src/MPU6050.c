@@ -2,11 +2,9 @@
 #include "myI2C.h"
 #include "myTimers.h"
 #include <math.h>
-
+#include "MadgwickAHRS.h"
 
 xTaskHandle thMPU6050 = NULL;
-
-double EST, E_EST; //For Kalman_1D
 
 void InitMPU6050 (void)
 {
@@ -113,46 +111,28 @@ double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_
     if (*accel_z_offset > 16384.0f){*accel_z_offset -= 16384.0f;}
 }
 
-double getAccelXAngle (double *faccel_x, double *faccel_y, double *faccel_z)
+double getAccelXAngle (double faccel_x, double faccel_y, double faccel_z)
 {
-    double accel_ang_x = atan(*faccel_x / sqrt(pow(*faccel_y, 2) + pow(*faccel_z, 2)))*RAD_TO_DEG;
+    double accel_ang_x = atan(faccel_x / sqrt(pow(faccel_y, 2) + pow(faccel_z, 2)))*RAD_TO_DEG;
     return accel_ang_x;
 }
-double getAccelYAngle (double *faccel_x, double *faccel_y, double *faccel_z)
+double getAccelYAngle (double faccel_x, double faccel_y, double faccel_z)
 {
-    double accel_ang_y = atan(*faccel_y / sqrt(pow(*faccel_x, 2) + pow(*faccel_z, 2)))*RAD_TO_DEG;
+    double accel_ang_y = atan(faccel_y / sqrt(pow(faccel_x, 2) + pow(faccel_z, 2)))*RAD_TO_DEG;
     return accel_ang_y;
 }
-double getAccelZAngle (double *faccel_x, double *faccel_y, double *faccel_z)
+double getAccelZAngle (double faccel_x, double faccel_y, double faccel_z)
 {
-    double accel_ang_z = atan(*faccel_z / sqrt(pow(*faccel_x, 2) + pow(*faccel_y, 2)))*RAD_TO_DEG;
+    double accel_ang_z = atan(faccel_z / sqrt(pow(faccel_x, 2) + pow(faccel_y, 2)))*RAD_TO_DEG;
     return accel_ang_z;
 }
 
-//Low cost version
-void Kalman_1D (double MEA, double E_MEA)
-{
-    // Kalman Gain
-    double KG = (E_EST)/(E_EST + E_MEA);
-    // Estimated Value
-    EST = EST + KG*(MEA-EST);
-    // Error in the estimated value
-    E_EST = (1-KG)*(E_EST);
-    
-}
-
-void displayAngles (double *faccel_x, double *faccel_y, double *faccel_z)
+void displayAngles (double faccel_x, double faccel_y, double faccel_z)
 {
     printf("AXAng: %f \tAYAng: %f \tAZAng: %f\n",
     getAccelXAngle (faccel_x, faccel_y, faccel_z),
     getAccelYAngle (faccel_x, faccel_y, faccel_z),
     getAccelZAngle (faccel_x, faccel_y, faccel_z));
-}
-
-void displayKalman (double *faccel)
-{
-    Kalman_1D (*faccel, (double)0.04);
-    printf("%f,%f,\n", *faccel,EST);
 }
 
 /*
@@ -236,24 +216,28 @@ void tMPU6050 (void *pv)
             faccel_x = (accel_x - (short)accel_x_offset) * ACCEL_SCALE;
             faccel_y = (accel_y - (short)accel_y_offset) * ACCEL_SCALE;
             faccel_z = (accel_z - (short)accel_z_offset) * ACCEL_SCALE;
-
             
-            //printf("faccel_x: %f \tfaccel_y: %f \tfaccel_z: %f \tftemp: %f \tfgryo_x: %f \tfgryo_y: %f \tfgryo_z: %f\n",
+           // printf("faccel_x: %f \tfaccel_y: %f \tfaccel_z: %f \tftemp: %f \tfgryo_x: %f \tfgryo_y: %f \tfgryo_z: %f\n",
             //faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
             
-            // Error that would tend to drift: zero crossing
+            MadgwickAHRSupdateIMU(fgyro_x,fgyro_y,fgyro_z,faccel_x,faccel_y,faccel_z);
+
+            //Euler Angles
+
+            /*// Error that would tend to drift: zero crossing
             gyro_x_ang = fgyro_x*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
             gyro_y_ang = fgyro_y*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
             gyro_z_ang = fgyro_z*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
-
-            printf("GXAng: %f \tGYAng: %f \tGZAng: %f \n",gyro_x_ang,gyro_y_ang,gyro_z_ang);
-            displayAngles(&faccel_x, &faccel_y, &faccel_z);
-            roll = 0.90*(roll + gyro_x_ang) + 0.1*getAccelYAngle (&faccel_x, &faccel_y, &faccel_z);
-            pitch = 0.90*(pitch + gyro_y_ang) - 0.1*getAccelXAngle (&faccel_x, &faccel_y, &faccel_z);
-            yaw = 0.90*(yaw + gyro_z_ang) + 0.1*getAccelYAngle (&faccel_x, &faccel_y, &faccel_z);
+        
+            //printf("GXAng: %f \tGYAng: %f \tGZAng: %f \n",gyro_x_ang,gyro_y_ang,gyro_z_ang);
+            //displayAngles(faccel_x, faccel_y, faccel_z);
+            roll += 0.96*(gyro_x_ang) + 0.04*(getAccelYAngle (faccel_x, faccel_y, faccel_z) - roll);
+            pitch += 0.96*(gyro_y_ang) - 0.04*(getAccelXAngle (faccel_x, faccel_y, faccel_z) + pitch);
+            yaw += gyro_z_ang ;
 
             printf("roll: %f \t pitch: %f \t yaw: %f \n",roll,pitch,yaw);
-            
+            */
+
         }
         else
         {

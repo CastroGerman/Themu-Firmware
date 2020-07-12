@@ -1,6 +1,5 @@
 #include "myGPIO.h"
 
-
 xTaskHandle thGPIO = NULL;
 
 void InitGPIO (void)

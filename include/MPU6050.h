@@ -54,22 +54,15 @@
 #define DEG_TO_RAD      (3.14159265f/180)
 #define RAD_TO_DEG      (1/DEG_TO_RAD)
 
-//Old offset based on simple inspection.
-#define ACCEL_X_OFF (800.0f/ACCEL_SCALE/16384.0f)
-#define ACCEL_Y_OFF (100.0f/ACCEL_SCALE/16384.0f)
-#define ACCEL_Z_OFF (3400.0f/ACCEL_SCALE/16384.0f)
-
 extern xTaskHandle thMPU6050;
-extern double EST, E_EST; //For Kalman_1D
 
 void InitMPU6050 (void);
 void offsetCalibration (double *accel_x_offset, double *accel_y_offset, double *accel_z_offset, 
 double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset);
-double getAccelXAngle (double *faccel_x, double *faccel_y, double *faccel_z);
-double getAccelYAngle (double *faccel_x, double *faccel_y, double *faccel_z);
-double getAccelZAngle (double *faccel_x, double *faccel_y, double *faccel_z);
-void displayAngles (double *faccel_x, double *faccel_y, double *faccel_z);
-void displayKalman (double *faccel);
+double getAccelXAngle (double faccel_x, double faccel_y, double faccel_z);
+double getAccelYAngle (double faccel_x, double faccel_y, double faccel_z);
+double getAccelZAngle (double faccel_x, double faccel_y, double faccel_z);
+void displayAngles (double faccel_x, double faccel_y, double faccel_z);
 
 void tMPU6050 (void *pv);
 
