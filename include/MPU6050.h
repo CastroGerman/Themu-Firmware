@@ -54,7 +54,6 @@
 #define DEG_TO_RAD      (3.14159265f/180)
 #define RAD_TO_DEG      (1/DEG_TO_RAD)
 
-
 extern xTaskHandle thMPU6050;
 
 void InitMPU6050 (void);

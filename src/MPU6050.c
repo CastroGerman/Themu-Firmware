@@ -2,9 +2,7 @@
 #include "myI2C.h"
 #include "myTimers.h"
 #include <math.h>
-
 #include "MadgwickAHRS.h"
-
 
 xTaskHandle thMPU6050 = NULL;
 
@@ -129,7 +127,6 @@ double getAccelZAngle (double faccel_x, double faccel_y, double faccel_z)
     return accel_ang_z;
 }
 
-
 void displayAngles (double faccel_x, double faccel_y, double faccel_z)
 {
     printf("AXAng: %f \tAYAng: %f \tAZAng: %f\n",
@@ -137,7 +134,6 @@ void displayAngles (double faccel_x, double faccel_y, double faccel_z)
     getAccelYAngle (faccel_x, faccel_y, faccel_z),
     getAccelZAngle (faccel_x, faccel_y, faccel_z));
 }
-
 
 /*
 *   Task to show if register values were processed correctly
@@ -241,6 +237,7 @@ void tMPU6050 (void *pv)
 
             printf("roll: %f \t pitch: %f \t yaw: %f \n",roll,pitch,yaw);
             */
+
         }
         else
         {

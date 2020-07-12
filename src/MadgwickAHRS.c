@@ -19,11 +19,13 @@
 #include <math.h>
 #include <stdio.h>
 
+
 //---------------------------------------------------------------------------------------------------
 // Definitions
 
 #define sampleFreq	512.0f		// sample frequency in Hz
 #define betaDef		10.0f		// 2 * proportional gain (Original = 0.1f)
+
 
 //---------------------------------------------------------------------------------------------------
 // Variable definitions
@@ -209,6 +211,7 @@ void MadgwickAHRSupdateIMU(float gx, float gy, float gz, float ax, float ay, flo
 	q3 *= recipNorm;
 
 	printf("Q0: %f \t Q1: %f \t Q2: %f \t Q3: %f \n",q0,q1,q2,q3);
+
 }
 
 //---------------------------------------------------------------------------------------------------
