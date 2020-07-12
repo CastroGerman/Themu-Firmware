@@ -1,5 +1,7 @@
 #include "myGPIO.h"
-#include "myTasks.h"
+
+
+xTaskHandle thGPIO = NULL;
 
 void InitGPIO (void)
 {
@@ -36,7 +38,7 @@ void InitGPIO (void)
     gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
     //hook isr handler for specific gpio pin
     gpio_isr_handler_add(GPIO_NUM_2, gpio2_isr_handler, (void*) NULL);
- 
+
 }
 
 
@@ -44,4 +46,23 @@ void IRAM_ATTR gpio2_isr_handler (void *pv)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     vTaskNotifyGiveFromISR(thGPIO, &xHigherPriorityTaskWoken);
+    if(xHigherPriorityTaskWoken != pdFALSE){}
+}
+
+void tGPIO (void *pv)
+{
+    uint32_t notifycount = 0;
+    while (1)
+    {
+        notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);//pdTRUE = as a binary semaphore. pdFALSE = as a counting semaphore.
+        if(notifycount == 1)
+        {
+            //printf("Interrumpio GPIO 2 \n");            
+        }
+        else
+        {
+            printf("TIMEOUT esperando notificacion en tGPIO\n");
+        }
+
+    }
 }
