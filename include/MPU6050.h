@@ -54,10 +54,6 @@
 #define DEG_TO_RAD      (3.14159265f/180)
 #define RAD_TO_DEG      (1/DEG_TO_RAD)
 
-//Old offset based on simple inspection.
-#define ACCEL_X_OFF (800.0f/ACCEL_SCALE/16384.0f)
-#define ACCEL_Y_OFF (100.0f/ACCEL_SCALE/16384.0f)
-#define ACCEL_Z_OFF (3400.0f/ACCEL_SCALE/16384.0f)
 
 extern xTaskHandle thMPU6050;
 

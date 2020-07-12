@@ -226,7 +226,7 @@ void tMPU6050 (void *pv)
             faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
             
             //MadgwickAHRSupdateIMU(fgyro_x,fgyro_y,fgyro_z,faccel_x,faccel_y,faccel_z);
-            MadgwickAHRSupdateIMU(gyro_x,gyro_y,gyro_z,accel_x,accel_y,accel_z);
+            //MadgwickAHRSupdateIMU(gyro_x,gyro_y,gyro_z,accel_x,accel_y,accel_z);
 
 
             // Error that would tend to drift: zero crossing
