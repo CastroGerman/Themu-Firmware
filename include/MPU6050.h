@@ -60,11 +60,10 @@ extern xTaskHandle thMPU6050;
 void InitMPU6050 (void);
 void offsetCalibration (double *accel_x_offset, double *accel_y_offset, double *accel_z_offset, 
 double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset);
-double getAccelXAngle (double *faccel_x, double *faccel_y, double *faccel_z);
-double getAccelYAngle (double *faccel_x, double *faccel_y, double *faccel_z);
-double getAccelZAngle (double *faccel_x, double *faccel_y, double *faccel_z);
-void displayAngles (double *faccel_x, double *faccel_y, double *faccel_z);
-void displayKalman (double *faccel);
+double getAccelXAngle (double faccel_x, double faccel_y, double faccel_z);
+double getAccelYAngle (double faccel_x, double faccel_y, double faccel_z);
+double getAccelZAngle (double faccel_x, double faccel_y, double faccel_z);
+void displayAngles (double faccel_x, double faccel_y, double faccel_z);
 
 void tMPU6050 (void *pv);
 
