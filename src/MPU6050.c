@@ -224,15 +224,11 @@ void tMPU6050 (void *pv)
            // printf("faccel_x: %f \tfaccel_y: %f \tfaccel_z: %f \tftemp: %f \tfgryo_x: %f \tfgryo_y: %f \tfgryo_z: %f\n",
             //faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
             
-
-
-            //MadgwickAHRSupdateIMU(fgyro_x,fgyro_y,fgyro_z,faccel_x,faccel_y,faccel_z);
-            //MadgwickAHRSupdateIMU(gyro_x,gyro_y,gyro_z,accel_x,accel_y,accel_z);
-
+            MadgwickAHRSupdateIMU(fgyro_x,fgyro_y,fgyro_z,faccel_x,faccel_y,faccel_z);
 
             //Euler Angles
 
-            // Error that would tend to drift: zero crossing
+            /*// Error that would tend to drift: zero crossing
             gyro_x_ang = fgyro_x*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
             gyro_y_ang = fgyro_y*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
             gyro_z_ang = fgyro_z*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
@@ -244,7 +240,7 @@ void tMPU6050 (void *pv)
             yaw += gyro_z_ang ;
 
             printf("roll: %f \t pitch: %f \t yaw: %f \n",roll,pitch,yaw);
-            
+            */
         }
         else
         {
