@@ -148,10 +148,6 @@ void tMPU6050 (void *pv)
     double accel_x_offset, accel_y_offset, accel_z_offset, temp_offset, gyro_x_offset, gyro_y_offset, gyro_z_offset;
     double faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z; //Processed Register Values
 
-    static double gyro_x_ang,gyro_y_ang,gyro_z_ang;
-    static double roll,pitch,yaw;
-
-
     offsetCalibration(&accel_x_offset,&accel_y_offset,&accel_z_offset,
     &temp_offset,&gyro_x_offset,&gyro_y_offset,&gyro_z_offset);
 
@@ -221,22 +217,7 @@ void tMPU6050 (void *pv)
             //faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
             
             MadgwickAHRSupdateIMU(fgyro_x,fgyro_y,fgyro_z,faccel_x,faccel_y,faccel_z);
-
-            //Euler Angles
-
-            /*// Error that would tend to drift: zero crossing
-            gyro_x_ang = fgyro_x*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
-            gyro_y_ang = fgyro_y*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
-            gyro_z_ang = fgyro_z*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
-        
-            //printf("GXAng: %f \tGYAng: %f \tGZAng: %f \n",gyro_x_ang,gyro_y_ang,gyro_z_ang);
-            //displayAngles(faccel_x, faccel_y, faccel_z);
-            roll += 0.96*(gyro_x_ang) + 0.04*(getAccelYAngle (faccel_x, faccel_y, faccel_z) - roll);
-            pitch += 0.96*(gyro_y_ang) - 0.04*(getAccelXAngle (faccel_x, faccel_y, faccel_z) + pitch);
-            yaw += gyro_z_ang ;
-
-            printf("roll: %f \t pitch: %f \t yaw: %f \n",roll,pitch,yaw);
-            */
+            
 
         }
         else
