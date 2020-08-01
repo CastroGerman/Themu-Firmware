@@ -3,6 +3,8 @@
 #include "myTimers.h"
 #include "MPU6050.h"
 
+xTaskHandle thGPIO = NULL, thG0Timer0 = NULL, thG0Timer1 = NULL, thMPU6050 = NULL;
+
 void InitTasks(void)
 {
     xTaskCreate(tGPIO, (const char *) "tGPIO",              configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 2UL), &thGPIO);

@@ -1,6 +1,5 @@
 #include "myGPIO.h"
-
-xTaskHandle thGPIO = NULL;
+#include "myTasks.h"
 
 void InitGPIO (void)
 {
@@ -29,7 +28,6 @@ void InitGPIO (void)
     io_config.pull_up_en = GPIO_PULLUP_ENABLE;
     gpio_config(&io_config);
     
-
     //change gpio intrrupt type for one pin
     //gpio_set_intr_type(GPIO_SEL_2, GPIO_INTR_ANYEDGE);
 
@@ -37,14 +35,12 @@ void InitGPIO (void)
     gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
     //hook isr handler for specific gpio pin
     gpio_isr_handler_add(GPIO_NUM_2, gpio2_isr_handler, (void*) NULL);
-
 }
-
 
 void IRAM_ATTR gpio2_isr_handler (void *pv)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    vTaskNotifyGiveFromISR(thGPIO, &xHigherPriorityTaskWoken);
+    xTaskNotifyFromISR(thGPIO, 2, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
     if(xHigherPriorityTaskWoken != pdFALSE){}
 }
 
@@ -56,12 +52,25 @@ void tGPIO (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);//pdTRUE = as a binary semaphore. pdFALSE = as a counting semaphore.
         if(notifycount == 1)
         {
-            //printf("Interrumpio GPIO 2 \n");            
+            //printf("Interrumpio notify 1 GPIO 2 \n"); 
+            /*Remember that u can't read OUTPUTS, only INPUTS.
+            * Or set the GPIO mode to GPIO_MODE_INPUT_OUTPUT.*/
+            if(gpio_get_level(GPIO_NUM_2))
+            {
+                gpio_set_level(GPIO_NUM_18, 0);
+            }
+            else
+            {
+                gpio_set_level(GPIO_NUM_18, 1);
+            }           
+        }
+        else if (notifycount == 2)
+        {
+            //printf("Interrumpio notify 2 GPIO 2 \n"); 
         }
         else
         {
             printf("TIMEOUT esperando notificacion en tGPIO\n");
         }
-
     }
 }

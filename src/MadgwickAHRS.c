@@ -209,11 +209,6 @@ void MadgwickAHRSupdateIMU(float gx, float gy, float gz, float ax, float ay, flo
 	q1 *= recipNorm;
 	q2 *= recipNorm;
 	q3 *= recipNorm;
-
-	//printf("Q0: %f \t Q1: %f \t Q2: %f \t Q3: %f \n",q0,q1,q2,q3);
-	
-	printf("%f, \t %f, \t %f, \t %f, \n",q0,q1,q2,q3);
-
 }
 
 //---------------------------------------------------------------------------------------------------
