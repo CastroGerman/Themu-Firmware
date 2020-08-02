@@ -234,7 +234,7 @@ void tMPU6050 (void *pv)
             vQuaternionPrint();
             printf("Q0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",q0,q1,q2,q3);
             */
-            
+            /*
             quaternionForm_t myQuat;
             myQuat.hamiltonForm.q0 = q0;
             myQuat.hamiltonForm.q1 = q1;
@@ -250,6 +250,7 @@ void tMPU6050 (void *pv)
 
             prot = rotateVector(p,myQuat.hamiltonForm);
             printf("pi=%f\tpj=%f\tpk=%f\tQ0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",prot.i,prot.j,prot.k,q0,q1,q2,q3);
+            */
         }
         else
         {

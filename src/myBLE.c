@@ -306,7 +306,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
             }
             else if(param->read.handle == battery_descr2_handle)
             {
-                uint16_t dummy_rsp = 0;
+                uint16_t dummy_rsp = 1;
                 a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
                 a_rsp_buf.len = sizeof(dummy_rsp);
                 memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
@@ -464,7 +464,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.uuid.uuid16 = BATTERY_CHAR_UUID;
             gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.len = ESP_UUID_LEN_16;
             gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.uuid.uuid16 = BATTERY_DESCR_UUID;
-            a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
+            a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
             esp_err_t add_char_ret = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].char_uuid,
                                                             ESP_GATT_PERM_READ,
                                                             a_property,
