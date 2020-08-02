@@ -15,5 +15,4 @@
 
 void InitI2C (void);
 
-
 #endif /* MYI2C_H_ */

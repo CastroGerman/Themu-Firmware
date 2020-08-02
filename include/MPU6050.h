@@ -1,8 +1,7 @@
 #ifndef MPU6050_H_
 #define MPU6050_H_
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#include <stdint.h>
 
 #define MPU6050_ADDRESS 0x68 // I2C address of MPU6050
 
@@ -54,15 +53,30 @@
 #define DEG_TO_RAD      (3.14159265f/180)
 #define RAD_TO_DEG      (1/DEG_TO_RAD)
 
-extern xTaskHandle thMPU6050;
 
+/*Quaternion value formatted as:
+* Sign (1 byte) + Value (8 bytes - double) + Nul Terminator (1 byte)
+*
+* The terminator in this case is going to be a '\n'(0x0A) token splitter.  
+* So the final value size for the quaternion is going to be 4*10 bytes.
+*/
+#define QUATERNION_SIZE_BYTES   40
+
+typedef struct quaternion
+{
+	uint8_t value[QUATERNION_SIZE_BYTES];
+}quaternion_t;
+
+void vQuaternionSend(void);
+void vQuaternionCreate(void);
+void vQuaternionDelete(void);
+void vQuaternionSave(void);
 void InitMPU6050 (void);
 void offsetCalibration (double *accel_x_offset, double *accel_y_offset, double *accel_z_offset, 
-double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset);
-double getAccelXAngle (double faccel_x, double faccel_y, double faccel_z);
-double getAccelYAngle (double faccel_x, double faccel_y, double faccel_z);
-double getAccelZAngle (double faccel_x, double faccel_y, double faccel_z);
-void displayAngles (double faccel_x, double faccel_y, double faccel_z);
+    double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset);
+void printMPU6050_registers(double faccel_x, double faccel_y, double faccel_z,
+    double ftemp, double fgyro_x, double fgyro_y, double fgyro_z);
+void vQuaternionPrint(void);
 
 void tMPU6050 (void *pv);
 

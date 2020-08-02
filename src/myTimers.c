@@ -1,9 +1,7 @@
 #include "myTimers.h"
-#include "myGPIO.h"
-#include "MPU6050.h"
+#include "myTasks.h"
 
 myTimers_t myTimer[2];
-xTaskHandle thG0Timer0 = NULL, thG0Timer1 = NULL;
 
 void InitTimer (int _timer_group, int _timer_index, bool _auto_reload, double _timer_interval_sec)
 {
@@ -102,7 +100,6 @@ void IRAM_ATTR g0_timer1_isr_handler (void *pv)
     
 }
 
-
 void tG0Timer0 (void *pv)
 {
     uint32_t notifycount = 0;
@@ -111,17 +108,7 @@ void tG0Timer0 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-
-            //printf("Notificacion recibida en TASK2 del timer\n");
-            if(gpio_get_level(GPIO_NUM_2))//Remember that u can't read OUTPUTS, only INPUTS.
-            {
-                gpio_set_level(GPIO_NUM_18, 0);
-            }
-            else
-            {
-                gpio_set_level(GPIO_NUM_18, 1);
-            }
-            
+            xTaskNotify(thGPIO, 2, eSetValueWithOverwrite);
             xTaskNotify(thMPU6050, 1, eSetValueWithOverwrite);
             //printf("Las cuentas al entrar a IRQ Timer0: %lld\n", myTimer[0].timer_counter_value);
             //timer_get_counter_value(TIMER_GROUP_0, TIMER_0, &myTimer[0].timer_counter_value);

@@ -1,5 +1,4 @@
 #include "myI2C.h"
-#include "MPU6050.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -15,8 +14,5 @@ void InitI2C (void)
 	ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &config));
 	ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
 	
-	vTaskDelay(200/portTICK_PERIOD_MS);
-
-	// Init devices.
-	InitMPU6050();
+	vTaskDelay(200/portTICK_PERIOD_MS);	
 }

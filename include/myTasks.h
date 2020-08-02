@@ -4,8 +4,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+extern xTaskHandle thGPIO, thG0Timer0, thG0Timer1, thMPU6050;
 
 void InitTasks (void);
-
 
 #endif /* MYTASKS_H_ */

@@ -1,13 +1,39 @@
 #include "MPU6050.h"
 #include "myI2C.h"
-#include "myTimers.h"
-#include <math.h>
 #include "MadgwickAHRS.h"
+#include "myBLE.h"
+#include "myTasks.h"
+#include <string.h>
 
-xTaskHandle thMPU6050 = NULL;
+#include "QuaternionMath.h"
+
+static quaternion_t *quaternion;
+
+void vQuaternionSend(void)
+{
+    a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(quaternion->value));
+    a_rsp_buf.len = sizeof(quaternion->value);
+    memcpy(a_rsp_buf.rsp_buf, quaternion->value, a_rsp_buf.len);
+}
+
+void vQuaternionCreate(void)
+{
+	quaternion = pvPortMalloc(sizeof(quaternion_t));
+}
+
+void vQuaternionDelete(void)
+{
+	vPortFree(quaternion);
+}
+
+void vQuaternionSave(void)
+{
+    snprintf((char *)quaternion->value, sizeof(quaternion->value),"%f\n%f\n%f\n%f\n",q0,q1,q2,q3);
+}
 
 void InitMPU6050 (void)
 {
+    vQuaternionCreate();
     /*
     * Master Write or Read?
     *
@@ -51,7 +77,6 @@ void InitMPU6050 (void)
 	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS); 
 	i2c_cmd_link_delete(cmd); 
 }
-
 
 void offsetCalibration (double *accel_x_offset, double *accel_y_offset, double *accel_z_offset, 
 double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset)
@@ -106,51 +131,34 @@ double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_
     *gyro_z_offset  /= CAL_ITERATIONS;
     // Taking off the G force.
     // This step requires to have 1 axis pointing up. See a better solution.
-    if (*accel_x_offset > 16384.0f){*accel_x_offset -= 16384.0f;}
-    if (*accel_y_offset > 16384.0f){*accel_y_offset -= 16384.0f;}
-    if (*accel_z_offset > 16384.0f){*accel_z_offset -= 16384.0f;}
+    if (*accel_x_offset > (1/ACCEL_SCALE)){*accel_x_offset -= (1/ACCEL_SCALE);}
+    if (*accel_y_offset > (1/ACCEL_SCALE)){*accel_y_offset -= (1/ACCEL_SCALE);}
+    if (*accel_z_offset > (1/ACCEL_SCALE)){*accel_z_offset -= (1/ACCEL_SCALE);}
 }
 
-double getAccelXAngle (double faccel_x, double faccel_y, double faccel_z)
+void printMPU6050_registers(double faccel_x, double faccel_y, double faccel_z, double ftemp, double fgyro_x, double fgyro_y, double fgyro_z)
 {
-    double accel_ang_x = atan(faccel_x / sqrt(pow(faccel_y, 2) + pow(faccel_z, 2)))*RAD_TO_DEG;
-    return accel_ang_x;
-}
-double getAccelYAngle (double faccel_x, double faccel_y, double faccel_z)
-{
-    double accel_ang_y = atan(faccel_y / sqrt(pow(faccel_x, 2) + pow(faccel_z, 2)))*RAD_TO_DEG;
-    return accel_ang_y;
-}
-double getAccelZAngle (double faccel_x, double faccel_y, double faccel_z)
-{
-    double accel_ang_z = atan(faccel_z / sqrt(pow(faccel_x, 2) + pow(faccel_y, 2)))*RAD_TO_DEG;
-    return accel_ang_z;
+    printf("faccel_x: %f \tfaccel_y: %f \tfaccel_z: %f \tftemp: %f \tfgryo_x: %f \tfgryo_y: %f \tfgryo_z: %f\n",
+            faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
 }
 
-void displayAngles (double faccel_x, double faccel_y, double faccel_z)
+void vQuaternionPrint(void)
 {
-    printf("AXAng: %f \tAYAng: %f \tAZAng: %f\n",
-    getAccelXAngle (faccel_x, faccel_y, faccel_z),
-    getAccelYAngle (faccel_x, faccel_y, faccel_z),
-    getAccelZAngle (faccel_x, faccel_y, faccel_z));
+    for(int i = 0; i<QUATERNION_SIZE_BYTES; i++)
+    {
+        printf("QValue[%d]=%d\t",i,quaternion->value[i]);
+    }
+    printf("\nQuaternion list:\n%s\n",quaternion->value);
 }
 
-/*
-*   Task to show if register values were processed correctly
-*/
 void tMPU6050 (void *pv)
 {
     uint32_t notifycount = 0;
 
   	uint8_t data[14];
-    // Maybe changing for arrays and make it less explicit?
 	short accel_x, accel_y, accel_z, temp, gyro_x, gyro_y, gyro_z; //Raw Register Values
     double accel_x_offset, accel_y_offset, accel_z_offset, temp_offset, gyro_x_offset, gyro_y_offset, gyro_z_offset;
     double faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z; //Processed Register Values
-
-    static double gyro_x_ang,gyro_y_ang,gyro_z_ang;
-    static double roll,pitch,yaw;
-
 
     offsetCalibration(&accel_x_offset,&accel_y_offset,&accel_z_offset,
     &temp_offset,&gyro_x_offset,&gyro_y_offset,&gyro_z_offset);
@@ -161,6 +169,7 @@ void tMPU6050 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
+
             // Tell the MPU6050 to position the internal register pointer to register MPU6050_ACCEL_XOUT_H.
             cmd = i2c_cmd_link_create();
             ESP_ERROR_CHECK(i2c_master_start(cmd));
@@ -216,28 +225,31 @@ void tMPU6050 (void *pv)
             faccel_x = (accel_x - (short)accel_x_offset) * ACCEL_SCALE;
             faccel_y = (accel_y - (short)accel_y_offset) * ACCEL_SCALE;
             faccel_z = (accel_z - (short)accel_z_offset) * ACCEL_SCALE;
-            
-           // printf("faccel_x: %f \tfaccel_y: %f \tfaccel_z: %f \tftemp: %f \tfgryo_x: %f \tfgryo_y: %f \tfgryo_z: %f\n",
-            //faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
-            
+
             MadgwickAHRSupdateIMU(fgyro_x,fgyro_y,fgyro_z,faccel_x,faccel_y,faccel_z);
+            vQuaternionSave();
 
-            //Euler Angles
-
-            /*// Error that would tend to drift: zero crossing
-            gyro_x_ang = fgyro_x*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
-            gyro_y_ang = fgyro_y*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
-            gyro_z_ang = fgyro_z*RAD_TO_DEG*G0_TIMER0_INTERVAL_SEC;
-        
-            //printf("GXAng: %f \tGYAng: %f \tGZAng: %f \n",gyro_x_ang,gyro_y_ang,gyro_z_ang);
-            //displayAngles(faccel_x, faccel_y, faccel_z);
-            roll += 0.96*(gyro_x_ang) + 0.04*(getAccelYAngle (faccel_x, faccel_y, faccel_z) - roll);
-            pitch += 0.96*(gyro_y_ang) - 0.04*(getAccelXAngle (faccel_x, faccel_y, faccel_z) + pitch);
-            yaw += gyro_z_ang ;
-
-            printf("roll: %f \t pitch: %f \t yaw: %f \n",roll,pitch,yaw);
+            /* Uncomment for debug
+            printMPU6050_registers(faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
+            vQuaternionPrint();
+            printf("Q0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",q0,q1,q2,q3);
             */
+            
+            quaternionForm_t myQuat;
+            myQuat.hamiltonForm.q0 = q0;
+            myQuat.hamiltonForm.q1 = q1;
+            myQuat.hamiltonForm.q2 = q2;
+            myQuat.hamiltonForm.q3 = q3;
 
+            //myQuat.polarForm = hamilton2polar(myQuat.hamiltonForm);
+
+            vector_t p, prot;
+            p.i=1;
+            p.j=0;
+            p.k=0;
+
+            prot = rotateVector(p,myQuat.hamiltonForm);
+            printf("pi=%f\tpj=%f\tpk=%f\tQ0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",prot.i,prot.j,prot.k,q0,q1,q2,q3);
         }
         else
         {

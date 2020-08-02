@@ -3,24 +3,20 @@
 #include "myTimers.h"
 #include "myI2C.h"
 #include "MPU6050.h"
+#include "myBLE.h"
 
 /* app_main is also a task with IDLE+1 priority */
-
-/*
-*   TODO: 
-*   Get Angles and Orientations
-*/
 void app_main() 
 {
+    vTaskPrioritySet(xTaskGetCurrentTaskHandle(), tskIDLE_PRIORITY + 5U);
     InitGPIO();
+    InitADC1();
+    InitI2C();
+    InitMPU6050();
+    //InitBLE();
     InitTimer(TIMER_GROUP_0, TIMER_0, TIMER_AUTORELOAD_EN, G0_TIMER0_INTERVAL_SEC);  
     InitTimer(TIMER_GROUP_0, TIMER_1, TIMER_AUTORELOAD_DIS, G0_TIMER1_INTERVAL_SEC);
-    InitI2C();
     InitTasks();
-    
-    while(1)
-    {
-        vTaskDelay(1000/portTICK_RATE_MS); 
-    }
 
+    vTaskDelete(xTaskGetCurrentTaskHandle());
 }
