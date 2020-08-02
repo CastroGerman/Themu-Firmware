@@ -108,7 +108,7 @@ void tG0Timer0 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-            xTaskNotify(thGPIO, 1, eSetValueWithOverwrite);
+            xTaskNotify(thGPIO, 2, eSetValueWithOverwrite);
             xTaskNotify(thMPU6050, 1, eSetValueWithOverwrite);
             //printf("Las cuentas al entrar a IRQ Timer0: %lld\n", myTimer[0].timer_counter_value);
             //timer_get_counter_value(TIMER_GROUP_0, TIMER_0, &myTimer[0].timer_counter_value);

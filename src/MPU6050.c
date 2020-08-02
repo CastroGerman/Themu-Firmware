@@ -5,6 +5,8 @@
 #include "myTasks.h"
 #include <string.h>
 
+#include "QuaternionMath.h"
+
 static quaternion_t *quaternion;
 
 void vQuaternionSend(void)
@@ -167,6 +169,7 @@ void tMPU6050 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
+
             // Tell the MPU6050 to position the internal register pointer to register MPU6050_ACCEL_XOUT_H.
             cmd = i2c_cmd_link_create();
             ESP_ERROR_CHECK(i2c_master_start(cmd));
@@ -223,14 +226,30 @@ void tMPU6050 (void *pv)
             faccel_y = (accel_y - (short)accel_y_offset) * ACCEL_SCALE;
             faccel_z = (accel_z - (short)accel_z_offset) * ACCEL_SCALE;
 
-            
             MadgwickAHRSupdateIMU(fgyro_x,fgyro_y,fgyro_z,faccel_x,faccel_y,faccel_z);
             vQuaternionSave();
 
             /* Uncomment for debug
             printMPU6050_registers(faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
             vQuaternionPrint();
+            printf("Q0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",q0,q1,q2,q3);
             */
+            
+            quaternionForm_t myQuat;
+            myQuat.hamiltonForm.q0 = q0;
+            myQuat.hamiltonForm.q1 = q1;
+            myQuat.hamiltonForm.q2 = q2;
+            myQuat.hamiltonForm.q3 = q3;
+
+            //myQuat.polarForm = hamilton2polar(myQuat.hamiltonForm);
+
+            vector_t p, prot;
+            p.i=1;
+            p.j=0;
+            p.k=0;
+
+            prot = rotateVector(p,myQuat.hamiltonForm);
+            printf("pi=%f\tpj=%f\tpk=%f\tQ0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",prot.i,prot.j,prot.k,q0,q1,q2,q3);
         }
         else
         {

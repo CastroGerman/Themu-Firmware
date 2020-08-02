@@ -1,5 +1,6 @@
 #include "myBLE.h"
 #include "MPU6050.h"
+#include "myGPIO.h"
 #include <string.h> //memcpy & memset
 
 /*Declare the static functions & variables*/
@@ -254,41 +255,70 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
 	    }else{
             vPortFree(a_rsp_buf.rsp_buf);
             if(param->read.handle == flex_sensor_charvalue_handle)
-            {
-                
+            {  
+                readADC1();                
             }
-            if(param->read.handle == restart_charvalue_handle)
+            else if(param->read.handle == restart_charvalue_handle)
             {
-                
+                uint8_t dummy_rsp = 0;
+                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
+                a_rsp_buf.len = sizeof(dummy_rsp);
+                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
             }
-            if(param->read.handle == restart_descr_handle)
+            else if(param->read.handle == restart_descr_handle)
             {
-                
+                uint8_t dummy_rsp = 0;
+                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
+                a_rsp_buf.len = sizeof(dummy_rsp);
+                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
             }
-            if(param->read.handle == quaternion_charvalue_handle)
+            else if(param->read.handle == quaternion_charvalue_handle)
             {
                 vQuaternionSend();
             }
-            if(param->read.handle == fb_led_charvalue_handle)
+            else if(param->read.handle == fb_led_charvalue_handle)
             {
-                
+                uint8_t dummy_rsp = 0;
+                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
+                a_rsp_buf.len = sizeof(dummy_rsp);
+                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
             }
-            if(param->read.handle == fb_led_descr_handle)
+            else if(param->read.handle == fb_led_descr_handle)
             {
-                
+                uint8_t dummy_rsp = 0;
+                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
+                a_rsp_buf.len = sizeof(dummy_rsp);
+                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
             }
-            if(param->read.handle == battery_charvalue_handle)
+            else if(param->read.handle == battery_charvalue_handle)
             {
-                
+                uint8_t dummy_rsp = 69;
+                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
+                a_rsp_buf.len = sizeof(dummy_rsp);
+                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
             }
-            if(param->read.handle == battery_descr_handle)
+            else if(param->read.handle == battery_descr_handle)
             {
-                
+                uint8_t dummy_rsp = 0;
+                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
+                a_rsp_buf.len = sizeof(dummy_rsp);
+                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
             }
-            if(param->read.handle == battery_descr2_handle)
+            else if(param->read.handle == battery_descr2_handle)
             {
-                
+                uint16_t dummy_rsp = 0;
+                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
+                a_rsp_buf.len = sizeof(dummy_rsp);
+                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
+            } 
+            else
+            {
+                uint8_t dummy_rsp = 0;
+                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
+                a_rsp_buf.len = sizeof(dummy_rsp);
+                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
             }
+            
             
             rsp.attr_value.len = a_rsp_buf.len;
             memcpy(rsp.attr_value.value, a_rsp_buf.rsp_buf, rsp.attr_value.len);  
@@ -361,7 +391,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
             gl_profile_tab[PROFILE_A_APP_ID].service_handle = param->create.service_handle;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.len = ESP_UUID_LEN_16;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.uuid.uuid16 = FLEX_SENSOR_CHAR_UUID;
-            a_property = ESP_GATT_CHAR_PROP_BIT_READ;
+            a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
             esp_err_t add_char_ret = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].char_uuid,
                                                             ESP_GATT_PERM_READ,
                                                             a_property,
@@ -397,7 +427,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
             gl_profile_tab[PROFILE_A_APP_ID].service_handle = param->create.service_handle;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.len = ESP_UUID_LEN_16;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.uuid.uuid16 = QUATERNION_CHAR_UUID;
-            a_property = ESP_GATT_CHAR_PROP_BIT_READ;
+            a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
             esp_err_t add_char_ret = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].char_uuid,
                                                             ESP_GATT_PERM_READ,
                                                             a_property,
@@ -434,7 +464,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.uuid.uuid16 = BATTERY_CHAR_UUID;
             gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.len = ESP_UUID_LEN_16;
             gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.uuid.uuid16 = BATTERY_DESCR_UUID;
-            a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE;
+            a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
             esp_err_t add_char_ret = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].char_uuid,
                                                             ESP_GATT_PERM_READ,
                                                             a_property,
