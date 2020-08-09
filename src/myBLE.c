@@ -274,7 +274,10 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
             }
             else if(param->read.handle == quaternion_charvalue_handle)
             {
-                vQuaternionSend();
+                uint8_t dummy_rsp = 0;
+                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
+                a_rsp_buf.len = sizeof(dummy_rsp);
+                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
             }
             else if(param->read.handle == fb_led_charvalue_handle)
             {
