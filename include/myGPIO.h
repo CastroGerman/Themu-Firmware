@@ -8,14 +8,10 @@
 #define DEFAULT_VREF    1100        //[mV]. Use adc2_vref_to_gpio() to obtain a better estimate
 #define NO_OF_SAMPLES   64          //Multisampling
 
-/*
-* GPIO 18 defined as output.
-* GPIO 2 defined as input.
-*/
 void InitGPIO (void);
 void InitADC1 (void);
 void readADC1(void);
-void IRAM_ATTR gpio2_isr_handler (void *pv);
+void IRAM_ATTR gpio16_isr_handler (void *pv);
 void tGPIO (void *pv);
 
 

@@ -1,3 +1,10 @@
+/**Brief:
+ * GPIO 16 defined as input.
+ * GPIO 17 defined as output.
+ * 
+ */
+
+
 #include "myGPIO.h"
 #include "myBLE.h"
 #include "myTasks.h"
@@ -60,7 +67,7 @@ void InitGPIO (void)
     //set as output mode
     io_config.mode = GPIO_MODE_OUTPUT;
     //bit mask of the pins that you want to set,e.g.GPIO18/19
-    io_config.pin_bit_mask = GPIO_SEL_18;
+    io_config.pin_bit_mask = GPIO_SEL_17;
     //disable pull-down mode
     io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
     //disable pull-up mode
@@ -68,23 +75,31 @@ void InitGPIO (void)
     //configure GPIO with the given settings
     gpio_config(&io_config);
 
-    //interrupt of rising edge
+    //interrupt of falling edge
     io_config.intr_type = GPIO_PIN_INTR_NEGEDGE;
-    //bit mask of the pins, use GPIO4/5 here
-    io_config.pin_bit_mask = GPIO_SEL_2;
+    //bit mask of the pins
+    io_config.pin_bit_mask = GPIO_SEL_16;
     //set as input mode
     io_config.mode = GPIO_MODE_INPUT;
     //enable pull-up mode
     io_config.pull_up_en = GPIO_PULLUP_ENABLE;
     gpio_config(&io_config);
-    
     //change gpio intrrupt type for one pin
-    //gpio_set_intr_type(GPIO_SEL_2, GPIO_INTR_ANYEDGE);
-
+    //gpio_set_intr_type(GPIO_SEL_16, GPIO_INTR_ANYEDGE);
     //install gpio isr service
     gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
     //hook isr handler for specific gpio pin
-    gpio_isr_handler_add(GPIO_NUM_2, gpio2_isr_handler, (void*) NULL);
+    gpio_isr_handler_add(GPIO_NUM_16, gpio16_isr_handler, (void*) NULL);
+    
+
+    //Setting LED on board
+    io_config.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_config.mode = GPIO_MODE_INPUT_OUTPUT;
+    io_config.pin_bit_mask = GPIO_SEL_2;
+    io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_config.pull_up_en = GPIO_PULLUP_ENABLE;
+    gpio_config(&io_config);
+
 }
 
 void readADC1 (void)
@@ -96,13 +111,13 @@ void readADC1 (void)
     }
     adc_reading /= NO_OF_SAMPLES;
     //Convert adc_reading to voltage in mV
-    uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-    a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(voltage));
-    a_rsp_buf.len = sizeof(voltage);
-    memcpy(a_rsp_buf.rsp_buf, &voltage, a_rsp_buf.len);
+    //uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
+    a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(adc_reading));
+    a_prepare_read_env.prepare_len = sizeof(adc_reading);
+    memcpy(a_prepare_read_env.prepare_buf, &adc_reading, a_prepare_read_env.prepare_len);
 }
 
-void IRAM_ATTR gpio2_isr_handler (void *pv)
+void IRAM_ATTR gpio16_isr_handler (void *pv)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     xTaskNotifyFromISR(thGPIO, 2, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
@@ -117,17 +132,18 @@ void tGPIO (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);//pdTRUE = as a binary semaphore. pdFALSE = as a counting semaphore.
         if(notifycount == 1)
         {
+            
             //printf("Interrumpio notify 1 GPIO 2 \n"); 
             /*Remember that u can't read OUTPUTS, only INPUTS.
             * Or set the GPIO mode to GPIO_MODE_INPUT_OUTPUT.*/
-            if(gpio_get_level(GPIO_NUM_2))
+            /*if(gpio_get_level(GPIO_NUM_2))
             {
                 gpio_set_level(GPIO_NUM_18, 0);
             }
             else
             {
                 gpio_set_level(GPIO_NUM_18, 1);
-            }           
+            }   */        
         }
         else if (notifycount == 2)
         {

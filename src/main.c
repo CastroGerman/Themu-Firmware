@@ -13,7 +13,7 @@ void app_main()
     InitADC1();
     InitI2C();
     InitMPU6050();
-    //InitBLE();
+    InitBLE();
     InitTimer(TIMER_GROUP_0, TIMER_0, TIMER_AUTORELOAD_EN, G0_TIMER0_INTERVAL_SEC);  
     InitTimer(TIMER_GROUP_0, TIMER_1, TIMER_AUTORELOAD_DIS, G0_TIMER1_INTERVAL_SEC);
     InitTasks();

@@ -11,9 +11,9 @@ static quaternion_t *quaternion;
 
 void vQuaternionSend(void)
 {
-    a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(quaternion->value));
-    a_rsp_buf.len = sizeof(quaternion->value);
-    memcpy(a_rsp_buf.rsp_buf, quaternion->value, a_rsp_buf.len);
+    a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(quaternion->value));
+    a_prepare_read_env.prepare_len = sizeof(quaternion->value);
+    memcpy(a_prepare_read_env.prepare_buf, quaternion->value, a_prepare_read_env.prepare_len);
 }
 
 void vQuaternionCreate(void)
@@ -234,22 +234,23 @@ void tMPU6050 (void *pv)
             vQuaternionPrint();
             printf("Q0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",q0,q1,q2,q3);
             */
-            
-            quaternionForm_t myQuat;
+
+
+
+
+            /*quaternionForm_t myQuat;
             myQuat.hamiltonForm.q0 = q0;
             myQuat.hamiltonForm.q1 = q1;
             myQuat.hamiltonForm.q2 = q2;
             myQuat.hamiltonForm.q3 = q3;
-
             //myQuat.polarForm = hamilton2polar(myQuat.hamiltonForm);
-
             vector_t p, prot;
             p.i=1;
             p.j=0;
             p.k=0;
-
             prot = rotateVector(p,myQuat.hamiltonForm);
             printf("pi=%f\tpj=%f\tpk=%f\tQ0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",prot.i,prot.j,prot.k,q0,q1,q2,q3);
+        */
         }
         else
         {

@@ -12,6 +12,8 @@
 #include "esp_bt_main.h" //implements initialization and enabling of the Bluedroid stack.
 #include "esp_gatt_common_api.h"
 
+#define PAYLOAD_LEN 22
+
 #define FLEX_SENSOR_SERVICE_UUID    0x0100
 #define FLEX_SENSOR_CHAR_UUID       0x0110
 #define RESTART_SERVICE_UUID        0x0200
@@ -95,15 +97,20 @@ typedef struct {
     int                     prepare_len;
 } prepare_type_env_t;
 
-typedef struct {
-    uint8_t                 *rsp_buf;
-    int                     len;
-} rsp_buf_t;
+extern prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
 
-extern rsp_buf_t a_rsp_buf;
-
-void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
-void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
+/**Statics:
+ * 
+ * 
+ * Functions:
+ * void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
+ * void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
+ * void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
+ * void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
+ * void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
+ * void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
+ * void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
+ */
 
 void InitBLE(void);
 

@@ -52,8 +52,7 @@ static struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
     },
 };
 
-static prepare_type_env_t a_prepare_write_env;
-rsp_buf_t a_rsp_buf;
+prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
 
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
@@ -129,7 +128,7 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
 }
 
 /*The example_write_event_env() function contains the logic for the write long characteristic procedure:*/
-void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
+static void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
     esp_gatt_status_t status = ESP_GATT_OK;
     if (param->write.need_rsp){
         if (param->write.is_prep){
@@ -173,7 +172,7 @@ void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare
     }
 }
 
-void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
+static void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
     if (param->exec_write.exec_write_flag == ESP_GATT_PREP_WRITE_EXEC){
         esp_log_buffer_hex(GATTS_TAG, prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
     }else{
@@ -185,6 +184,194 @@ void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble
     }
     prepare_write_env->prepare_len = 0;
 }
+
+
+static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
+{
+    if (!param->write.is_prep){
+        ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
+        esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
+        if (gl_profile_tab[PROFILE_A_APP_ID].descr_handle == param->write.handle && param->write.len == 2){
+            uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
+            if (descr_value == 0x0001){
+                if (a_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY){
+                    ESP_LOGI(GATTS_TAG, "notify enable");
+                    uint8_t notify_data[15];
+                    for (int i = 0; i < sizeof(notify_data); ++i)
+                    {
+                        notify_data[i] = i%0xff;
+                    }
+                    //the size of notify_data[] need less than MTU size
+                    esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_A_APP_ID].char_handle,
+                                            sizeof(notify_data), notify_data, false);
+                }
+            }else if (descr_value == 0x0002){
+                if (a_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
+                    ESP_LOGI(GATTS_TAG, "indicate enable");
+                    uint8_t indicate_data[15];
+                    for (int i = 0; i < sizeof(indicate_data); ++i)
+                    {
+                        indicate_data[i] = i%0xff;
+                    }
+                    //the size of indicate_data[] need less than MTU size
+                    esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_A_APP_ID].char_handle,
+                                            sizeof(indicate_data), indicate_data, true);
+                }
+            }
+            else if (descr_value == 0x0000){
+                ESP_LOGI(GATTS_TAG, "notify/indicate disable ");
+            }else{
+                ESP_LOGE(GATTS_TAG, "unknown descr value");
+                esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
+            }
+        }
+    }
+
+    if(param->write.handle == flex_sensor_charvalue_handle)
+    {  
+                      
+    }
+    else if(param->write.handle == restart_charvalue_handle)
+    {
+        
+    }
+    else if(param->write.handle == restart_descr_handle)
+    {
+        
+    }
+    else if(param->write.handle == quaternion_charvalue_handle)
+    {
+        
+    }
+    else if(param->write.handle == fb_led_charvalue_handle)
+    {
+        gpio_set_level(GPIO_NUM_2,param->write.value[0]);
+    }
+    else if(param->write.handle == fb_led_descr_handle)
+    {
+      
+    }
+    else if(param->write.handle == battery_charvalue_handle)
+    {
+        
+    }
+    else if(param->write.handle == battery_descr_handle)
+    {
+        
+    }
+    else if(param->write.handle == battery_descr2_handle)
+    {
+        
+    } 
+    
+    
+    for(uint16_t i = 0; i < param->write.len; i++)
+    {
+        printf("value[%d]: %d\n",i,param->write.value[i]);
+    }
+
+    example_write_event_env(gatts_if, &a_prepare_write_env, param);
+    
+}
+
+static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
+{
+    esp_gatt_rsp_t rsp;
+    memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
+    rsp.attr_value.handle = param->read.handle;
+
+    /*Supporting long reads (more than the 22 bytes standard payload)*/
+    if (param->read.is_long && a_prepare_read_env.prepare_buf)
+    {
+        int remaining_read = (a_prepare_read_env.prepare_len - param->read.offset);
+        rsp.attr_value.len = (remaining_read) > PAYLOAD_LEN ? PAYLOAD_LEN : remaining_read;
+        memcpy(rsp.attr_value.value, a_prepare_read_env.prepare_buf + param->read.offset, rsp.attr_value.len);
+        if (param->read.offset + rsp.attr_value.len >= a_prepare_read_env.prepare_len) 
+        {
+            if (a_prepare_read_env.prepare_buf) 
+            {
+                vPortFree(a_prepare_read_env.prepare_buf);
+                a_prepare_read_env.prepare_buf = NULL;
+            }
+            a_prepare_read_env.prepare_len = 0;
+        }
+    }else{
+        vPortFree(a_prepare_read_env.prepare_buf);
+        if(param->read.handle == flex_sensor_charvalue_handle)
+        {  
+            readADC1();                
+        }
+        else if(param->read.handle == restart_charvalue_handle)
+        {
+            uint8_t dummy_rsp = 0;
+            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
+            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
+            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+        }
+        else if(param->read.handle == restart_descr_handle)
+        {
+            uint8_t dummy_rsp = 0;
+            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
+            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
+            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+        }
+        else if(param->read.handle == quaternion_charvalue_handle)
+        {
+            vQuaternionSend();
+        }
+        else if(param->read.handle == fb_led_charvalue_handle)
+        {
+            int value = gpio_get_level(GPIO_NUM_2);
+            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(int));
+            a_prepare_read_env.prepare_len = sizeof(int);
+            memcpy(a_prepare_read_env.prepare_buf, &value, a_prepare_read_env.prepare_len);
+        }
+        else if(param->read.handle == fb_led_descr_handle)
+        {
+            uint8_t dummy_rsp = 0;
+            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
+            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
+            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+        }
+        else if(param->read.handle == battery_charvalue_handle)
+        {
+            uint8_t dummy_rsp = 69;
+            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
+            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
+            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+        }
+        else if(param->read.handle == battery_descr_handle)
+        {
+            uint8_t dummy_rsp = 0;
+            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
+            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
+            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+        }
+        else if(param->read.handle == battery_descr2_handle)
+        {
+            uint16_t dummy_rsp = 0;
+            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
+            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
+            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+        } 
+        else
+        {
+            uint8_t dummy_rsp = 0;
+            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
+            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
+            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+        }
+        
+        
+        rsp.attr_value.len = a_prepare_read_env.prepare_len;
+        memcpy(rsp.attr_value.value, a_prepare_read_env.prepare_buf, rsp.attr_value.len);  
+    }
+    
+    esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
+                                ESP_GATT_OK, &rsp);
+
+}
+
 
 /*Application Profiles callback functions*/
 static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
@@ -233,144 +420,12 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         break;
     case ESP_GATTS_READ_EVT: {
         ESP_LOGI(GATTS_TAG, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
-        esp_gatt_rsp_t rsp;
-        memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
-        rsp.attr_value.handle = param->read.handle;
-
-        /*Supporting long reads (more than the 22 bytes standard payload)*/
-        if (param->read.is_long && a_rsp_buf.rsp_buf)
-        {
-            int remaining_read = (a_rsp_buf.len - param->read.offset);
-            rsp.attr_value.len = (remaining_read) > 22 ? 22 : remaining_read;
-            memcpy(rsp.attr_value.value, a_rsp_buf.rsp_buf + param->read.offset, rsp.attr_value.len);
-            if (param->read.offset + rsp.attr_value.len >= a_rsp_buf.len) 
-            {
-                if (a_rsp_buf.rsp_buf) 
-                {
-                    vPortFree(a_rsp_buf.rsp_buf);
-                    a_rsp_buf.rsp_buf = NULL;
-                }
-                a_rsp_buf.len = 0;
-            }
-	    }else{
-            vPortFree(a_rsp_buf.rsp_buf);
-            if(param->read.handle == flex_sensor_charvalue_handle)
-            {  
-                readADC1();                
-            }
-            else if(param->read.handle == restart_charvalue_handle)
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == restart_descr_handle)
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == quaternion_charvalue_handle)
-            {
-                vQuaternionSend();
-            }
-            else if(param->read.handle == fb_led_charvalue_handle)
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == fb_led_descr_handle)
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == battery_charvalue_handle)
-            {
-                uint8_t dummy_rsp = 69;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == battery_descr_handle)
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == battery_descr2_handle)
-            {
-                uint16_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            } 
-            else
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            
-            
-            rsp.attr_value.len = a_rsp_buf.len;
-            memcpy(rsp.attr_value.value, a_rsp_buf.rsp_buf, rsp.attr_value.len);  
-        }
-	    
-        esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
-                                    ESP_GATT_OK, &rsp);
-        
+        gatts_profile_a_read_handle(gatts_if, param);
         break;
     }
     case ESP_GATTS_WRITE_EVT: {
         ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, conn_id %d, trans_id %d, handle %d", param->write.conn_id, param->write.trans_id, param->write.handle);
-        if (!param->write.is_prep){
-            ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
-            esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
-            if (gl_profile_tab[PROFILE_A_APP_ID].descr_handle == param->write.handle && param->write.len == 2){
-                uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
-                if (descr_value == 0x0001){
-                    if (a_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY){
-                        ESP_LOGI(GATTS_TAG, "notify enable");
-                        uint8_t notify_data[15];
-                        for (int i = 0; i < sizeof(notify_data); ++i)
-                        {
-                            notify_data[i] = i%0xff;
-                        }
-                        //the size of notify_data[] need less than MTU size
-                        esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_A_APP_ID].char_handle,
-                                                sizeof(notify_data), notify_data, false);
-                    }
-                }else if (descr_value == 0x0002){
-                    if (a_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
-                        ESP_LOGI(GATTS_TAG, "indicate enable");
-                        uint8_t indicate_data[15];
-                        for (int i = 0; i < sizeof(indicate_data); ++i)
-                        {
-                            indicate_data[i] = i%0xff;
-                        }
-                        //the size of indicate_data[] need less than MTU size
-                        esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_A_APP_ID].char_handle,
-                                                sizeof(indicate_data), indicate_data, true);
-                    }
-                }
-                else if (descr_value == 0x0000){
-                    ESP_LOGI(GATTS_TAG, "notify/indicate disable ");
-                }else{
-                    ESP_LOGE(GATTS_TAG, "unknown descr value");
-                    esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
-                }
-
-            }
-        }
-        example_write_event_env(gatts_if, &a_prepare_write_env, param);
+        gatts_profile_a_write_handle(gatts_if, param);
         break;
     }
     case ESP_GATTS_EXEC_WRITE_EVT:
