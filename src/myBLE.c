@@ -54,6 +54,13 @@ static struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
 
 prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
 
+/*Saving app parameters to handle notifications*/
+esp_gatt_if_t a_gatts_if;
+uint16_t a_conn_id;
+cccd_t a_cccd;
+
+
+
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
     switch (event) {
@@ -191,45 +198,40 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
     if (!param->write.is_prep){
         ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
         esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
-        if (gl_profile_tab[PROFILE_A_APP_ID].descr_handle == param->write.handle && param->write.len == 2){
-            uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
-            if (descr_value == 0x0001){
-                if (a_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY){
-                    ESP_LOGI(GATTS_TAG, "notify enable");
-                    uint8_t notify_data[15];
-                    for (int i = 0; i < sizeof(notify_data); ++i)
-                    {
-                        notify_data[i] = i%0xff;
-                    }
-                    //the size of notify_data[] need less than MTU size
-                    esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_A_APP_ID].char_handle,
-                                            sizeof(notify_data), notify_data, false);
-                }
-            }else if (descr_value == 0x0002){
-                if (a_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
-                    ESP_LOGI(GATTS_TAG, "indicate enable");
-                    uint8_t indicate_data[15];
-                    for (int i = 0; i < sizeof(indicate_data); ++i)
-                    {
-                        indicate_data[i] = i%0xff;
-                    }
-                    //the size of indicate_data[] need less than MTU size
-                    esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_A_APP_ID].char_handle,
-                                            sizeof(indicate_data), indicate_data, true);
-                }
-            }
-            else if (descr_value == 0x0000){
-                ESP_LOGI(GATTS_TAG, "notify/indicate disable ");
-            }else{
-                ESP_LOGE(GATTS_TAG, "unknown descr value");
-                esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
-            }
-        }
     }
 
     if(param->write.handle == flex_sensor_charvalue_handle)
     {  
-                      
+                  
+    }
+    if(param->write.handle == flex_sensor_descr_handle)
+    {   
+        if(param->write.len == 2)
+        {
+            uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
+            if (descr_value == 0x0001){
+                if (a_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY){
+                    ESP_LOGI(GATTS_TAG, "Notify enable");
+                    a_cccd.flex_sensor = NOTIFICATION_ENABLE;
+                }
+            }else if (descr_value == 0x0002){
+                if (a_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
+                    ESP_LOGI(GATTS_TAG, "Indicate enable");
+                    //actually, not implemented
+                }
+            }
+            else if (descr_value == 0x0000){
+                ESP_LOGI(GATTS_TAG, "Notify & indicate disable ");
+                a_cccd.flex_sensor = NOTIFICATION_DISABLE;
+            }else{
+                ESP_LOGE(GATTS_TAG, "Unknown descriptor value.");
+                esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
+            }
+        }
+        else
+        {
+            ESP_LOGE(GATTS_TAG, "Descriptor length out of range. Expected 16 bits.");
+        }
     }
     else if(param->write.handle == restart_charvalue_handle)
     {
@@ -264,12 +266,12 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
         
     } 
     
-    
+    /*
     for(uint16_t i = 0; i < param->write.len; i++)
     {
         printf("value[%d]: %d\n",i,param->write.value[i]);
     }
-
+    */
     example_write_event_env(gatts_if, &a_prepare_write_env, param);
     
 }
@@ -300,6 +302,12 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
         if(param->read.handle == flex_sensor_charvalue_handle)
         {  
             readADC1();                
+        }
+        else if(param->read.handle == flex_sensor_descr_handle)
+        {
+            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(uint16_t));
+            a_prepare_read_env.prepare_len = sizeof(uint16_t);
+            memcpy(a_prepare_read_env.prepare_buf, &a_cccd.flex_sensor, a_prepare_read_env.prepare_len);
         }
         else if(param->read.handle == restart_charvalue_handle)
         {
@@ -380,7 +388,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
     case ESP_GATTS_REG_EVT:
         ESP_LOGI(GATTS_TAG, "REGISTER_APP_EVT, status %d, app_id %d\n", param->reg.status, param->reg.app_id);
 
-        esp_err_t set_dev_name_ret = esp_ble_gap_set_device_name(TEST_DEVICE_NAME);
+        esp_err_t set_dev_name_ret = esp_ble_gap_set_device_name(TEST_DEVICE_NAME); //Used if not advertising cuztomized raw data.
         if (set_dev_name_ret){
             ESP_LOGE(GATTS_TAG, "set device name failed, error code = %x", set_dev_name_ret);
         }
@@ -446,6 +454,8 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
             gl_profile_tab[PROFILE_A_APP_ID].service_handle = param->create.service_handle;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.len = ESP_UUID_LEN_16;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.uuid.uuid16 = FLEX_SENSOR_CHAR_UUID;
+            gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.len = ESP_UUID_LEN_16;
+            gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.uuid.uuid16 = FLEX_SENSOR_DESCR_UUID;
             a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
             esp_err_t add_char_ret = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].char_uuid,
                                                             ESP_GATT_PERM_READ,
@@ -453,6 +463,12 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                                                             NULL, NULL);/* Adding a characteristic to a service triggers an ESP_GATTS_ADD_CHAR_EVT */
             if (add_char_ret){
                 ESP_LOGE(GATTS_TAG, "add char failed, error code =%x",add_char_ret);
+            }
+            esp_err_t add_descr_ret = esp_ble_gatts_add_char_descr(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].descr_uuid,
+                                                                    ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, NULL, NULL);
+                                                                    /* Once the descriptor is added, the ESP_GATTS_ADD_CHAR_DESCR_EVT event is triggered */
+            if (add_descr_ret){
+                ESP_LOGE(GATTS_TAG, "add char descr failed, error code =%x", add_descr_ret);
             }
         }
         if( param->create.service_handle == restart_handle)
@@ -482,7 +498,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
             gl_profile_tab[PROFILE_A_APP_ID].service_handle = param->create.service_handle;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.len = ESP_UUID_LEN_16;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.uuid.uuid16 = QUATERNION_CHAR_UUID;
-            a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
+            a_property = ESP_GATT_CHAR_PROP_BIT_READ;
             esp_err_t add_char_ret = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].char_uuid,
                                                             ESP_GATT_PERM_READ,
                                                             a_property,
@@ -578,6 +594,11 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         gl_profile_tab[PROFILE_A_APP_ID].conn_id = param->connect.conn_id;
         //start sent the update connection parameters to the peer device.
         esp_ble_gap_update_conn_params(&conn_params); /*this triggers a GAP event ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT*/
+
+        /*Saving app parameters to handle notifications*/
+        a_gatts_if = gatts_if;
+        a_conn_id = param->connect.conn_id;
+        
         break;
     }
     case ESP_GATTS_DISCONNECT_EVT:
@@ -677,4 +698,59 @@ void InitBLE()
     }
 
     return;
+}
+
+/**Why MTU agreement is needed in order to set a notification:
+ * Thread: https://github.com/espressif/esp-idf/issues/3315
+ * For posterity, I reviewed the Bluetooth specification (v4.2 & v5.1), 
+ * and found the sections relevant to Notification (4.10), Indication (4.11) 
+ * and write long characteristic values (4.9.4). It does appear (as @chegewara states) 
+ * that notification & indication of new characteristic values is limited by the current MTU.
+ * 
+ * In this project, the longest notification message is 43 bytes long.
+ */
+void tBLE (void *pv)
+{
+    a_cccd.battery = NOTIFICATION_DISABLE;
+    a_cccd.fb_led = NOTIFICATION_DISABLE;
+    a_cccd.flex_sensor = NOTIFICATION_DISABLE;
+    a_cccd.quaternion = NOTIFICATION_DISABLE;
+    a_cccd.restart = NOTIFICATION_DISABLE;
+    uint32_t notifycount = 0;
+    while (1)
+    {
+        notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        if(notifycount == 1)
+        {
+            if(a_cccd.flex_sensor)
+            {
+                readADC1();
+                esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, flex_sensor_charvalue_handle,
+                        a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
+
+            }
+            if(a_cccd.restart)
+            {
+
+            }
+            if(a_cccd.quaternion)
+            {
+
+            }
+            if(a_cccd.fb_led)
+            {
+
+            }
+            if(a_cccd.battery)
+            {
+
+            }
+        }
+        else
+        {
+            printf("TIMEOUT waiting notification on tBLE\n");
+        }
+
+    }
+    
 }

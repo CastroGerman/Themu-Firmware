@@ -37,15 +37,7 @@ void InitTimer (int _timer_group, int _timer_index, bool _auto_reload, double _t
     timer_enable_intr(_timer_group, _timer_index);
     timer_start(_timer_group, _timer_index);
 }
-/*
-pxHigherPriorityTaskWoken: vTaskNotifyGiveFromISR() will set *pxHigherPriorityTaskWoken 
-to pdTRUE if sending the notification caused the task to which the notification was
-sent to leave the Blocked state, and the unblocked task has a priority higher 
-than the currently running task. If vTaskNotifyGiveFromISR() sets this value 
-to pdTRUE then a context switch should be requested before the interrupt is exited. 
-How a context switch is requested from an ISR is dependent on the port - see 
-the documentation page for the port in use.
-*/
+
 void IRAM_ATTR g0_timer0_isr_handler (void *pv)
 {
     TIMERG0.hw_timer[TIMER_0].update = 1; //To read registers
@@ -68,6 +60,16 @@ void IRAM_ATTR g0_timer0_isr_handler (void *pv)
         // ISR uses port specific syntax.  Check the demo task for your port
         // to find the syntax required.
         //vTaskSwitchContext(); ?? Investigate
+
+        /*
+        pxHigherPriorityTaskWoken: vTaskNotifyGiveFromISR() will set *pxHigherPriorityTaskWoken 
+        to pdTRUE if sending the notification caused the task to which the notification was
+        sent to leave the Blocked state, and the unblocked task has a priority higher 
+        than the currently running task. If vTaskNotifyGiveFromISR() sets this value 
+        to pdTRUE then a context switch should be requested before the interrupt is exited. 
+        How a context switch is requested from an ISR is dependent on the port - see 
+        the documentation page for the port in use.
+        */
     }
     
 }
@@ -108,8 +110,9 @@ void tG0Timer0 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-            xTaskNotify(thGPIO, 2, eSetValueWithOverwrite);
-            xTaskNotify(thMPU6050, 1, eSetValueWithOverwrite);
+            xTaskNotify(thBLE, 1, eSetValueWithOverwrite);
+            //xTaskNotify(thGPIO, 2, eSetValueWithOverwrite);
+            //xTaskNotify(thMPU6050, 1, eSetValueWithOverwrite);
             //printf("Las cuentas al entrar a IRQ Timer0: %lld\n", myTimer[0].timer_counter_value);
             //timer_get_counter_value(TIMER_GROUP_0, TIMER_0, &myTimer[0].timer_counter_value);
             //printf("Las cuentas en la tarea Timer0: %lld\n", myTimer[0].timer_counter_value);

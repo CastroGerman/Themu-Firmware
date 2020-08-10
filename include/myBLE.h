@@ -16,6 +16,7 @@
 
 #define FLEX_SENSOR_SERVICE_UUID    0x0100
 #define FLEX_SENSOR_CHAR_UUID       0x0110
+#define FLEX_SENSOR_DESCR_UUID      0x2902
 #define RESTART_SERVICE_UUID        0x0200
 #define RESTART_CHAR_UUID           0x0210
 #define RESTART_DESCR_UUID          0x0211
@@ -36,7 +37,7 @@ Characteristic descriptor handle*/
 /*When you use esp_ble_gatts_create_service there is last argument where you set handles count for this service. In example it is 4. 
 * I found that for every characteristic use 2 handles as service and descriptor use 1 handler. 
 * So if you like to add characteristic you should init service with 6 or more handle number*/
-#define FLEX_SENSOR_NUM_HANDLE      3
+#define FLEX_SENSOR_NUM_HANDLE      4
 #define RESTART_NUM_HANDLE          4
 #define QUATERNION_NUM_HANDLE       3
 #define FB_LED_NUM_HANDLE           4
@@ -55,10 +56,14 @@ Characteristic descriptor handle*/
 #define PROFILE_NUM         1
 #define PROFILE_A_APP_ID    0
 
+#define NOTIFICATION_ENABLE     0x0001
+#define NOTIFICATION_DISABLE    0x0000
+
 enum Profile_handlers {
     flex_sensor_handle = BASE_SERVICE_HANDLE,
     flex_sensor_char_handle,
     flex_sensor_charvalue_handle,
+    flex_sensor_descr_handle,
     restart_handle,
     restart_char_handle,
     restart_charvalue_handle,
@@ -97,7 +102,15 @@ typedef struct {
     int                     prepare_len;
 } prepare_type_env_t;
 
+typedef struct{
+    uint16_t flex_sensor, restart, quaternion, fb_led, battery;
+} cccd_t; /*!< Client Characteristic Configuration Descriptor */
+
 extern prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
+
+extern esp_gatt_if_t a_gatts_if;
+extern uint16_t a_conn_id;
+extern cccd_t a_cccd;
 
 /**Statics:
  * 
@@ -113,5 +126,6 @@ extern prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
  */
 
 void InitBLE(void);
+void tBLE (void *pv);
 
 #endif /* MYBLE_H_ */
