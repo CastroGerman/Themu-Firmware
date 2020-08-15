@@ -16,12 +16,13 @@
 
 #define FLEX_SENSOR_SERVICE_UUID    0x0100
 #define FLEX_SENSOR_CHAR_UUID       0x0110
-#define FLEX_SENSOR_DESCR_UUID      0x2902
+#define FLEX_SENSOR_DESCR_UUID      0x2902 
 #define RESTART_SERVICE_UUID        0x0200
 #define RESTART_CHAR_UUID           0x0210
 #define RESTART_DESCR_UUID          0x0211
 #define QUATERNION_SERVICE_UUID     0x0300
 #define QUATERNION_CHAR_UUID        0x0310
+#define QUATERNION_DESCR_UUID       0x2902
 #define FB_LED_SERVICE_UUID         0x0400
 #define FB_LED_CHAR_UUID            0x0410
 #define FB_LED_DESCR_UUID           0x0411
@@ -39,7 +40,7 @@ Characteristic descriptor handle*/
 * So if you like to add characteristic you should init service with 6 or more handle number*/
 #define FLEX_SENSOR_NUM_HANDLE      4
 #define RESTART_NUM_HANDLE          4
-#define QUATERNION_NUM_HANDLE       3
+#define QUATERNION_NUM_HANDLE       4
 #define FB_LED_NUM_HANDLE           4
 #define BATTERY_NUM_HANDLE          5
 #define BASE_SERVICE_HANDLE         40
@@ -71,6 +72,7 @@ enum Profile_handlers {
     quaternion_handle,
     quaternion_char_handle,
     quaternion_charvalue_handle,
+    quaternion_descr_handle,
     fb_led_handle,
     fb_led_char_handle,
     fb_led_charvalue_handle,
@@ -126,6 +128,7 @@ extern cccd_t a_cccd;
  */
 
 void InitBLE(void);
+void notificationDisable_all(void);
 void tBLE (void *pv);
 
 #endif /* MYBLE_H_ */

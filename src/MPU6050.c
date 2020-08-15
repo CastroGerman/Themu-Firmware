@@ -26,9 +26,17 @@ void vQuaternionDelete(void)
 	vPortFree(quaternion);
 }
 
-void vQuaternionSave(void)
+void vQuaternionSaveASCII(void)
 {
     snprintf((char *)quaternion->value, sizeof(quaternion->value),"%f\n%f\n%f\n%f\n",q0,q1,q2,q3);
+}
+
+void vQuaternionSaveUChar(void)
+{
+    memcpy(quaternion->value, (const void *) &q0, sizeof(q0));
+    memcpy(quaternion->value+4, (const void *) &q1, sizeof(q1));
+    memcpy(quaternion->value+8, (const void *) &q2, sizeof(q2));
+    memcpy(quaternion->value+12, (const void *) &q3, sizeof(q3));
 }
 
 void InitMPU6050 (void)
@@ -142,13 +150,29 @@ void printMPU6050_registers(double faccel_x, double faccel_y, double faccel_z, d
             faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
 }
 
-void vQuaternionPrint(void)
+void vQuaternionPrintASCII(void)
 {
     for(int i = 0; i<QUATERNION_SIZE_BYTES; i++)
     {
         printf("QValue[%d]=%d\t",i,quaternion->value[i]);
     }
     printf("\nQuaternion list:\n%s\n",quaternion->value);
+}
+
+void vQuaternionPrintFloat(void)
+{
+    uint32_t _q0 = (quaternion->value[3]<<24)|(quaternion->value[2]<<16)|(quaternion->value[1]<<8)|(quaternion->value[0]);
+    uint32_t _q1 = (quaternion->value[7]<<24)|(quaternion->value[6]<<16)|(quaternion->value[5]<<8)|(quaternion->value[4]);
+    uint32_t _q2 = (quaternion->value[11]<<24)|(quaternion->value[10]<<16)|(quaternion->value[9]<<8)|(quaternion->value[8]);
+    uint32_t _q3 = (quaternion->value[15]<<24)|(quaternion->value[14]<<16)|(quaternion->value[13]<<8)|(quaternion->value[12]);
+    
+    float _q0f,_q1f,_q2f,_q3f;  
+    memcpy(&_q0f, &_q0, sizeof(_q0f));
+    memcpy(&_q1f, &_q1, sizeof(_q1f));
+    memcpy(&_q2f, &_q2, sizeof(_q2f));
+    memcpy(&_q3f, &_q3, sizeof(_q3f));
+
+    printf("_Q0=%f\t_Q1=%f\t_Q2=%f\t_Q3=%f\n",_q0f,_q1f,_q2f,_q3f);
 }
 
 void tMPU6050 (void *pv)
@@ -227,18 +251,16 @@ void tMPU6050 (void *pv)
             faccel_z = (accel_z - (short)accel_z_offset) * ACCEL_SCALE;
 
             MadgwickAHRSupdateIMU(fgyro_x,fgyro_y,fgyro_z,faccel_x,faccel_y,faccel_z);
-            vQuaternionSave();
-
-            /* Uncomment for debug
+            //vQuaternionSaveASCII();
+            vQuaternionSaveUChar();
+            /* Uncomment for debug: Printing
             printMPU6050_registers(faccel_x, faccel_y, faccel_z, ftemp, fgyro_x, fgyro_y, fgyro_z);
-            vQuaternionPrint();
+            vQuaternionPrintFloat();
             printf("Q0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",q0,q1,q2,q3);
             */
-
-
-
-
-            /*quaternionForm_t myQuat;
+            
+            /* Uncomment for debug: Rotate vector
+            quaternionForm_t myQuat;
             myQuat.hamiltonForm.q0 = q0;
             myQuat.hamiltonForm.q1 = q1;
             myQuat.hamiltonForm.q2 = q2;
@@ -250,11 +272,11 @@ void tMPU6050 (void *pv)
             p.k=0;
             prot = rotateVector(p,myQuat.hamiltonForm);
             printf("pi=%f\tpj=%f\tpk=%f\tQ0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",prot.i,prot.j,prot.k,q0,q1,q2,q3);
-        */
+            */
         }
         else
         {
-            printf("TIMEOUT esperando notificacion en tMPU6050\n");
+            printf("TIMEOUT waiting notification on tMPU6050\n");
         }
         
 	}

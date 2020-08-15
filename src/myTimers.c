@@ -76,30 +76,14 @@ void IRAM_ATTR g0_timer0_isr_handler (void *pv)
 
 void IRAM_ATTR g0_timer1_isr_handler (void *pv)
 {
-    TIMERG0.hw_timer[TIMER_1].update = 1;
+    TIMERG0.hw_timer[TIMER_1].update = 1; 
     myTimer[TIMER_1].timer_counter_value = 
     ((uint64_t) TIMERG0.hw_timer[TIMER_1].cnt_high) << 32 | TIMERG0.hw_timer[TIMER_1].cnt_low;
-
     TIMERG0.int_clr_timers.t1 = 1; 
-   
-    timer_set_counter_value(TIMER_GROUP_0, TIMER_1, 0x00000000ULL); //Why drift?
-    /* Drift as well. The same way.
-    TIMERG0.hw_timer[1].cnt_high = 0;
-    TIMERG0.hw_timer[1].cnt_low = 0;
-    TIMERG0.hw_timer[1].reload = 1;
-    */
-
-    // Solution that doesn't drift:
-    //myTimer[1].timer_counter_value += (uint64_t) (G0_TIMER1_INTERVAL_SEC * TIMER_SCALE);
-    //TIMERG0.hw_timer[1].alarm_high = (uint32_t) (myTimer[1].timer_counter_value >> 32);
-    //TIMERG0.hw_timer[1].alarm_low = (uint32_t) myTimer[1].timer_counter_value;
-
-    TIMERG0.hw_timer[TIMER_1].config.alarm_en = TIMER_ALARM_EN;
-    
+    TIMERG0.hw_timer[TIMER_1].config.alarm_en = TIMER_ALARM_EN;  
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     vTaskNotifyGiveFromISR(thG0Timer1, &xHigherPriorityTaskWoken);
     if(xHigherPriorityTaskWoken != pdFALSE){}
-    
 }
 
 void tG0Timer0 (void *pv)
@@ -110,16 +94,12 @@ void tG0Timer0 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-            xTaskNotify(thBLE, 1, eSetValueWithOverwrite);
             //xTaskNotify(thGPIO, 2, eSetValueWithOverwrite);
-            //xTaskNotify(thMPU6050, 1, eSetValueWithOverwrite);
-            //printf("Las cuentas al entrar a IRQ Timer0: %lld\n", myTimer[0].timer_counter_value);
-            //timer_get_counter_value(TIMER_GROUP_0, TIMER_0, &myTimer[0].timer_counter_value);
-            //printf("Las cuentas en la tarea Timer0: %lld\n", myTimer[0].timer_counter_value);
+            xTaskNotify(thMPU6050, 1, eSetValueWithOverwrite);
         }
         else
         {
-            printf("TIMEOUT esperando notificacion en tG0Timer0\n");
+            printf("TIMEOUT waiting notification on tG0Timer0\n");
         }
 
     }
@@ -134,13 +114,11 @@ void tG0Timer1 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-            //printf("Las cuentas al entrar a IRQ Timer1: %lld\n", myTimer[1].timer_counter_value);
-            //timer_get_counter_value(TIMER_GROUP_0, TIMER_1, &myTimer[1].timer_counter_value);
-            //printf("Las cuentas en la tarea Timer1: %lld\n", myTimer[1].timer_counter_value);
+            xTaskNotify(thBLE, 1, eSetValueWithOverwrite);
         }
         else
         {
-            printf("TIMEOUT esperando notificacion en tG0Timer1\n");
+            printf("TIMEOUT waiting notification on tG0Timer1\n");
         }
 
     }

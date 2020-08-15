@@ -110,11 +110,13 @@ void readADC1 (void)
         adc_reading += adc1_get_raw((adc1_channel_t)channel);
     }
     adc_reading /= NO_OF_SAMPLES;
-    //Convert adc_reading to voltage in mV
+    //Convert adc_reading to voltage in mV:
     //uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-    a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(adc_reading));
-    a_prepare_read_env.prepare_len = sizeof(adc_reading);
-    memcpy(a_prepare_read_env.prepare_buf, &adc_reading, a_prepare_read_env.prepare_len);
+
+    uint16_t to_send = (uint16_t) adc_reading;
+    a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(to_send));
+    a_prepare_read_env.prepare_len = sizeof(to_send);
+    memcpy(a_prepare_read_env.prepare_buf, &to_send, a_prepare_read_env.prepare_len);
 }
 
 void IRAM_ATTR gpio16_isr_handler (void *pv)

@@ -55,12 +55,10 @@
 
 
 /*Quaternion value formatted as:
-* Sign (1 byte) + Value (8 bytes - double) + Nul Terminator (1 byte)
-*
-* The terminator in this case is going to be a '\n'(0x0A) token splitter.  
-* So the final value size for the quaternion is going to be 4*10 bytes.
+* value[0]......value[4]......value[8]......value[12]......value[15]
+* q0 (LSB)......q1 (LSB)......q2 (LSB)......q3 (LSB)........q3 (MSB)
 */
-#define QUATERNION_SIZE_BYTES   40
+#define QUATERNION_SIZE_BYTES   16
 
 typedef struct quaternion
 {
@@ -70,13 +68,15 @@ typedef struct quaternion
 void vQuaternionSend(void);
 void vQuaternionCreate(void);
 void vQuaternionDelete(void);
-void vQuaternionSave(void);
+void vQuaternionSaveASCII(void);
+void vQuaternionSaveUChar(void);
 void InitMPU6050 (void);
 void offsetCalibration (double *accel_x_offset, double *accel_y_offset, double *accel_z_offset, 
     double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset);
 void printMPU6050_registers(double faccel_x, double faccel_y, double faccel_z,
     double ftemp, double fgyro_x, double fgyro_y, double fgyro_z);
-void vQuaternionPrint(void);
+void vQuaternionPrintASCII(void);
+void vQuaternionPrintFloat(void);
 
 void tMPU6050 (void *pv);
 
