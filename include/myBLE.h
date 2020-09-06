@@ -57,6 +57,8 @@ Characteristic descriptor handle*/
 #define PROFILE_NUM         1
 #define PROFILE_A_APP_ID    0
 
+
+#define INDICATIONS_ENABLE      0x0002
 #define NOTIFICATION_ENABLE     0x0001
 #define NOTIFICATION_DISABLE    0x0000
 
@@ -128,7 +130,8 @@ extern cccd_t a_cccd;
  */
 
 void InitBLE(void);
-void notificationDisable_all(void);
+uint16_t getCCCD(esp_ble_gatts_cb_param_t *param);
+void disableAllNotifications(void);
 void tBLE (void *pv);
 
 #endif /* MYBLE_H_ */

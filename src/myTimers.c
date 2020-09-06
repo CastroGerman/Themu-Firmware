@@ -1,5 +1,7 @@
 #include "myTimers.h"
 #include "myTasks.h"
+#include "configs.h"
+#include "myGPIO.h"
 
 myTimers_t myTimer[2];
 
@@ -94,8 +96,10 @@ void tG0Timer0 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-            //xTaskNotify(thGPIO, 2, eSetValueWithOverwrite);
+            xTaskNotify(thGPIO, 2, eSetValueWithOverwrite);
+            #ifdef ENABLE_THEMU_IMU
             xTaskNotify(thMPU6050, 1, eSetValueWithOverwrite);
+            #endif
         }
         else
         {
@@ -114,7 +118,9 @@ void tG0Timer1 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
+            #ifdef ENABLE_THEMU_BLE
             xTaskNotify(thBLE, 1, eSetValueWithOverwrite);
+            #endif
         }
         else
         {

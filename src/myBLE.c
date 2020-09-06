@@ -1,7 +1,9 @@
 #include "myBLE.h"
 #include "MPU6050.h"
 #include "myGPIO.h"
+#include "BLEPayloads.h"
 #include <string.h> //memcpy & memset
+#include "configs.h"
 
 /*Declare the static functions & variables*/
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
@@ -53,7 +55,6 @@ static struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
 };
 
 prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
-
 /*Saving app parameters to handle notifications*/
 esp_gatt_if_t a_gatts_if;
 uint16_t a_conn_id;
@@ -204,34 +205,9 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
     {  
                   
     }
-    if(param->write.handle == flex_sensor_descr_handle)
+    else if(param->write.handle == flex_sensor_descr_handle)
     {   
-        if(param->write.len == 2)
-        {
-            uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
-            if (descr_value == 0x0001){
-                if (a_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY){
-                    ESP_LOGI(GATTS_TAG, "Notify enable");
-                    a_cccd.flex_sensor = NOTIFICATION_ENABLE;
-                }
-            }else if (descr_value == 0x0002){
-                if (a_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
-                    ESP_LOGI(GATTS_TAG, "Indicate enable");
-                    //actually, not implemented
-                }
-            }
-            else if (descr_value == 0x0000){
-                ESP_LOGI(GATTS_TAG, "Notify & indicate disable ");
-                a_cccd.flex_sensor = NOTIFICATION_DISABLE;
-            }else{
-                ESP_LOGE(GATTS_TAG, "Unknown descriptor value.");
-                esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
-            }
-        }
-        else
-        {
-            ESP_LOGE(GATTS_TAG, "Descriptor length out of range. Expected 16 bits.");
-        }
+        a_cccd.flex_sensor = getCCCD(param);
     }
     else if(param->write.handle == restart_charvalue_handle)
     {
@@ -247,32 +223,7 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
     }
     else if(param->write.handle == quaternion_descr_handle)
     {
-        if(param->write.len == 2)
-        {
-            uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
-            if (descr_value == 0x0001){
-                if (a_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY){
-                    ESP_LOGI(GATTS_TAG, "Notify enable");
-                    a_cccd.quaternion = NOTIFICATION_ENABLE;
-                }
-            }else if (descr_value == 0x0002){
-                if (a_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
-                    ESP_LOGI(GATTS_TAG, "Indicate enable");
-                    //actually, not implemented
-                }
-            }
-            else if (descr_value == 0x0000){
-                ESP_LOGI(GATTS_TAG, "Notify & indicate disable ");
-                a_cccd.quaternion = NOTIFICATION_DISABLE;
-            }else{
-                ESP_LOGE(GATTS_TAG, "Unknown descriptor value.");
-                esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
-            }
-        }
-        else
-        {
-            ESP_LOGE(GATTS_TAG, "Descriptor length out of range. Expected 16 bits.");
-        }
+        a_cccd.quaternion = getCCCD(param);
     }
     else if(param->write.handle == fb_led_charvalue_handle)
     {
@@ -292,22 +243,17 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
     }
     else if(param->write.handle == battery_descr2_handle)
     {
-        
+        a_cccd.battery = getCCCD(param);
     } 
     
-    /*
-    for(uint16_t i = 0; i < param->write.len; i++)
-    {
-        printf("value[%d]: %d\n",i,param->write.value[i]);
-    }
-    */
-    example_write_event_env(gatts_if, &a_prepare_write_env, param);
-    
+    example_write_event_env(gatts_if, &a_prepare_write_env, param); 
 }
 
 static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
 {
     esp_gatt_rsp_t rsp;
+    /*This response buffer is managed as a data array instead of a data pointer.
+    * So just a memset() is enough to allocate memory.*/
     memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
     rsp.attr_value.handle = param->read.handle;
 
@@ -328,83 +274,63 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
         }
     }else{
         vPortFree(a_prepare_read_env.prepare_buf);
+        a_prepare_read_env.prepare_buf = NULL;
         if(param->read.handle == flex_sensor_charvalue_handle)
         {  
-            readADC1();                
+            #ifdef ENABLE_THEMU_ADC
+            prepReadADC1Channel(ADC_CHANNEL_6);              
+            #else
+            prepReadDummy();
+            #endif
         }
         else if(param->read.handle == flex_sensor_descr_handle)
         {
-            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(uint16_t));
-            a_prepare_read_env.prepare_len = sizeof(uint16_t);
-            memcpy(a_prepare_read_env.prepare_buf, &a_cccd.flex_sensor, a_prepare_read_env.prepare_len);
+            prepReadCCCD(a_cccd.flex_sensor);
         }
         else if(param->read.handle == restart_charvalue_handle)
         {
-            uint8_t dummy_rsp = 0;
-            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
-            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
-            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+            prepReadDummy();
         }
         else if(param->read.handle == restart_descr_handle)
         {
-            uint8_t dummy_rsp = 0;
-            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
-            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
-            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+            prepReadDummy();
         }
         else if(param->read.handle == quaternion_charvalue_handle)
         {
-            vQuaternionSend();
+            #ifdef ENABLE_THEMU_IMU
+            prepReadQuaternion(quaternion);
+            #else
+            prepReadDummy();
+            #endif
         }
         else if(param->read.handle == quaternion_descr_handle)
         {
-            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(uint16_t));
-            a_prepare_read_env.prepare_len = sizeof(uint16_t);
-            memcpy(a_prepare_read_env.prepare_buf, &a_cccd.quaternion, a_prepare_read_env.prepare_len);
+            prepReadCCCD(a_cccd.quaternion);
         }
         else if(param->read.handle == fb_led_charvalue_handle)
         {
-            int value = gpio_get_level(GPIO_NUM_2);
-            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(int));
-            a_prepare_read_env.prepare_len = sizeof(int);
-            memcpy(a_prepare_read_env.prepare_buf, &value, a_prepare_read_env.prepare_len);
+            prepReadGPIOLevel(FB_LED_PIN);
         }
         else if(param->read.handle == fb_led_descr_handle)
         {
-            uint8_t dummy_rsp = 0;
-            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
-            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
-            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+            prepReadDummy();
         }
         else if(param->read.handle == battery_charvalue_handle)
         {
-            uint8_t dummy_rsp = 69;
-            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
-            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
-            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+            prepReadDummy();
         }
         else if(param->read.handle == battery_descr_handle)
         {
-            uint8_t dummy_rsp = 0;
-            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
-            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
-            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+            prepReadDummy();
         }
         else if(param->read.handle == battery_descr2_handle)
         {
-            uint16_t dummy_rsp = 0;
-            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
-            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
-            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+            prepReadDummy();
         } 
         else
         {
-            uint8_t dummy_rsp = 0;
-            a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummy_rsp));
-            a_prepare_read_env.prepare_len = sizeof(dummy_rsp);
-            memcpy(a_prepare_read_env.prepare_buf, &dummy_rsp, a_prepare_read_env.prepare_len);
+            prepReadDummy();
         }
-        
         
         rsp.attr_value.len = a_prepare_read_env.prepare_len;
         memcpy(rsp.attr_value.value, a_prepare_read_env.prepare_buf, rsp.attr_value.len);  
@@ -640,7 +566,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         /*Saving app parameters to handle notifications*/
         a_gatts_if = gatts_if;
         a_conn_id = param->connect.conn_id;
-        notificationDisable_all();
+        disableAllNotifications();
         
         break;
     }
@@ -663,6 +589,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         break;
     }
 }
+
 
 
 void InitBLE()
@@ -743,8 +670,38 @@ void InitBLE()
     return;
 }
 
+//Verify for write permission and CCCD value. Return the CCCD value on success or 0 on fail.
+uint16_t getCCCD(esp_ble_gatts_cb_param_t *_param)
+{
+    if(_param->write.len == 2)
+        {
+        uint16_t descr_value = _param->write.value[1]<<8 | _param->write.value[0];
+        if (descr_value == 0x0001){
+            if (a_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY){
+                ESP_LOGI(GATTS_TAG, "Notify enable");
+                return NOTIFICATION_ENABLE;
+            }
+        }else if (descr_value == 0x0002){
+            if (a_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
+                ESP_LOGI(GATTS_TAG, "Indicate enable");
+                return INDICATIONS_ENABLE;
+            }
+        }
+        else if (descr_value == 0x0000){
+            ESP_LOGI(GATTS_TAG, "Notify & indicate disable ");
+            return NOTIFICATION_DISABLE;
+        }else{
+            ESP_LOGE(GATTS_TAG, "Unknown descriptor value.");
+        }
+    }
+    else
+    {
+        ESP_LOGE(GATTS_TAG, "Descriptor length out of range. Expected 16 bits.");
+    } 
+    return 0;
+}
 
-void notificationDisable_all(void)
+void disableAllNotifications(void)
 {
     a_cccd.battery = NOTIFICATION_DISABLE;
     a_cccd.fb_led = NOTIFICATION_DISABLE;
@@ -753,18 +710,17 @@ void notificationDisable_all(void)
     a_cccd.restart = NOTIFICATION_DISABLE;
 }
 
+
 /**Why MTU agreement is needed in order to set a notification:
  * Thread: https://github.com/espressif/esp-idf/issues/3315
  * For posterity, I reviewed the Bluetooth specification (v4.2 & v5.1), 
  * and found the sections relevant to Notification (4.10), Indication (4.11) 
  * and write long characteristic values (4.9.4). It does appear (as @chegewara states) 
  * that notification & indication of new characteristic values is limited by the current MTU.
- * 
- * In this project, the longest notification message is 43 bytes long. Therefore the minimum 
- * MTU agreement must be 43 bytes long.
  */
 void tBLE (void *pv)
 {
+    a_prepare_read_env.prepare_buf=NULL;
     uint32_t notifycount = 0;
     while (1)
     {
@@ -773,9 +729,11 @@ void tBLE (void *pv)
         {
             if(a_cccd.flex_sensor)
             {
-                readADC1();
+                #ifdef ENABLE_THEMU_ADC
+                prepReadADC1Channel(ADC1_CHANNEL_6);
                 esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, flex_sensor_charvalue_handle,
                         a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
+                #endif
 
             }
             if(a_cccd.restart)
@@ -784,9 +742,11 @@ void tBLE (void *pv)
             }
             if(a_cccd.quaternion)
             {
-                vQuaternionSend();
+                #ifdef ENABLE_THEMU_IMU
+                prepReadQuaternion(quaternion);
                 esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, quaternion_charvalue_handle,
                         a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
+                #endif
             }
             if(a_cccd.fb_led)
             {

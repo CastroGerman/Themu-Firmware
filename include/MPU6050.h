@@ -2,6 +2,7 @@
 #define MPU6050_H_
 
 #include <stdint.h>
+#include "QuaternionLib.h"
 
 #define MPU6050_ADDRESS 0x68 // I2C address of MPU6050
 
@@ -54,29 +55,13 @@
 #define RAD_TO_DEG      (1/DEG_TO_RAD)
 
 
-/*Quaternion value formatted as:
-* value[0]......value[4]......value[8]......value[12]......value[15]
-* q0 (LSB)......q1 (LSB)......q2 (LSB)......q3 (LSB)........q3 (MSB)
-*/
-#define QUATERNION_SIZE_BYTES   16
+extern quaternion_t *quaternion;
 
-typedef struct quaternion
-{
-	uint8_t value[QUATERNION_SIZE_BYTES];
-}quaternion_t;
-
-void vQuaternionSend(void);
-void vQuaternionCreate(void);
-void vQuaternionDelete(void);
-void vQuaternionSaveASCII(void);
-void vQuaternionSaveUChar(void);
 void InitMPU6050 (void);
 void offsetCalibration (double *accel_x_offset, double *accel_y_offset, double *accel_z_offset, 
     double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset);
 void printMPU6050_registers(double faccel_x, double faccel_y, double faccel_z,
     double ftemp, double fgyro_x, double fgyro_y, double fgyro_z);
-void vQuaternionPrintASCII(void);
-void vQuaternionPrintFloat(void);
 
 void tMPU6050 (void *pv);
 

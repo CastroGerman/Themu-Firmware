@@ -1,18 +1,16 @@
 /**Brief:
  * GPIO 16 defined as input.
  * GPIO 17 defined as output.
- * 
+ * GPIO 34 defined as channel 6 of ADC1.
  */
-
-
 #include "myGPIO.h"
 #include "myBLE.h"
 #include "myTasks.h"
 #include <string.h>
-
+#include "configs.h"
 static esp_adc_cal_characteristics_t *adc_chars;
 static const adc_channel_t channel = ADC_CHANNEL_6;     //GPIO34 of ADC1 
-static const adc_atten_t atten = ADC_ATTEN_DB_0;
+static const adc_atten_t atten = ADC_ATTEN_DB_11;
 static const adc_unit_t unit = ADC_UNIT_1;
 
 static void check_efuse()
@@ -91,7 +89,6 @@ void InitGPIO (void)
     //hook isr handler for specific gpio pin
     gpio_isr_handler_add(GPIO_NUM_16, gpio16_isr_handler, (void*) NULL);
     
-
     //Setting LED on board
     io_config.intr_type = GPIO_PIN_INTR_DISABLE;
     io_config.mode = GPIO_MODE_INPUT_OUTPUT;
@@ -99,10 +96,31 @@ void InitGPIO (void)
     io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_config.pull_up_en = GPIO_PULLUP_ENABLE;
     gpio_config(&io_config);
-
 }
 
-void readADC1 (void)
+int readPorcentualADC1Channel(adc1_channel_t _channel)
+{
+    int adcRead = 0;
+    //Multisampling
+    for (int i = 0; i < NO_OF_SAMPLES; i++) {
+        adcRead += adc1_get_raw(_channel);
+    }
+    adcRead /= NO_OF_SAMPLES;
+
+    #if defined ENABLE_THEMU_LOGS && defined ENABLE_THEMU_ADC_LOGS
+    printf("ADC Raw: %d\tLength: %ul\n",adcRead,sizeof(adcRead));
+    #endif
+    
+    adcRead = (adcRead-ADC_CAL_MIN)*100/(ADC_CAL_MAX-ADC_CAL_MIN); 
+    
+    #if defined ENABLE_THEMU_LOGS && defined ENABLE_THEMU_ADC_LOGS
+    printf("ADC Porcentual: %d\n",adcRead);
+    #endif
+    
+    return adcRead;
+}
+
+void readADC1_delete (void)
 {
     uint32_t adc_reading = 0;
     //Multisampling
@@ -110,6 +128,7 @@ void readADC1 (void)
         adc_reading += adc1_get_raw((adc1_channel_t)channel);
     }
     adc_reading /= NO_OF_SAMPLES;
+    printf("ADC Value: %d\n", adc_reading);
     //Convert adc_reading to voltage in mV:
     //uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
 
@@ -164,7 +183,7 @@ void tGPIO (void *pv)
         }
         else
         {
-            printf("TIMEOUT esperando notificacion en tGPIO\n");
+            printf("TIMEOUT waiting notification on tGPIO\n");
         }
     }
 }
