@@ -29,7 +29,6 @@
 #define MPU6050_GYRO_CONFIG     0x1B
 #define MPU6050_ACCEL_CONFIG    0x1C
 
-#define CAL_ITERATIONS  64
 /*
 *   AFS_SEL     Full Scale Range        LSB Sensitivity
 *   0               +/- 2g                  16384 LSB/g
@@ -54,15 +53,48 @@
 #define DEG_TO_RAD      (3.14159265f/180)
 #define RAD_TO_DEG      (1/DEG_TO_RAD)
 
+#define MPU6050_8BITS_REGS      14
+#define MPU6050_16BITS_REGS     (MPU6050_8BITS_REGS/2)
+#define CAL_ITERATIONS          64
+
+enum MPU6050_8BitsRegsIdx
+{
+    accelX_H = 0,
+    accelX_L,
+    accelY_H,
+    accelY_L,
+    accelZ_H,
+    accelZ_L,
+    temp_H,
+    temp_L,
+    gyroX_H,
+    gyroX_L,
+    gyroY_H,
+    gyroY_L,
+    gyroZ_H,
+    gyroZ_L 
+};
+
+enum MPU6050_16BitsRegsIdx
+{
+    accelX = 0,
+    accelY,
+    accelZ,
+    temp,
+    gyroX,
+    gyroY,
+    gyroZ
+};
 
 extern quaternion_t *quaternion;
 
 void InitMPU6050 (void);
-void offsetCalibration (double *accel_x_offset, double *accel_y_offset, double *accel_z_offset, 
-    double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset);
-void printMPU6050_registers(double faccel_x, double faccel_y, double faccel_z,
-    double ftemp, double fgyro_x, double fgyro_y, double fgyro_z);
-
+void readMPU6050Regs(uint8_t *_mpuRegs);
+void getMPUValuesFromRegs(double *_values, uint8_t *_mpuRegs);
+void processMPUValues(double *_processed, double *_values, double *_offsets);
+void takeOutGForceFromAccel(double *_MPU6050Values);
+void getMPU6050Offset(double *_offsetValues);
+void printValues(double *_values);
 void tMPU6050 (void *pv);
 
 #endif /* MPU6050_H_ */

@@ -11,6 +11,7 @@
 #include "esp_bt_defs.h"
 #include "esp_bt_main.h" //implements initialization and enabling of the Bluedroid stack.
 #include "esp_gatt_common_api.h"
+#include "configs.h"
 
 #define PAYLOAD_LEN 22
 
@@ -44,6 +45,13 @@ Characteristic descriptor handle*/
 #define FB_LED_NUM_HANDLE           4
 #define BATTERY_NUM_HANDLE          5
 #define BASE_SERVICE_HANDLE         40
+
+#ifdef ENABLE_THEMU_BLE_LOGS
+    #define LOG_SERVICE_UUID        0x0600
+    #define LOG_CHAR_UUID           0x0610
+    #define LOG_DESCR_UUID          0x2902
+    #define LOG_NUM_HANDLE          4
+#endif
 
 #define TEST_DEVICE_NAME    "GATTS_THEMU"
 #define GATTS_TAG           "GATTS_THEMU_INFO"
@@ -84,6 +92,12 @@ enum Profile_handlers {
     battery_charvalue_handle,
     battery_descr_handle,
     battery_descr2_handle
+    #ifdef ENABLE_THEMU_BLE_LOGS
+    ,log_handle
+    ,log_char_handle
+    ,log_charvalue_handle
+    ,log_descr_handle
+    #endif
 };
 
 struct gatts_profile_inst {
@@ -108,10 +122,16 @@ typedef struct {
 
 typedef struct{
     uint16_t flex_sensor, restart, quaternion, fb_led, battery;
+    #ifdef ENABLE_THEMU_BLE_LOGS
+    uint16_t ble_log;
+    #endif
 } cccd_t; /*!< Client Characteristic Configuration Descriptor */
 
-extern prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
+#ifdef ENABLE_THEMU_BLE_LOGS
+extern char *bleLogMsg;
+#endif
 
+extern prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
 extern esp_gatt_if_t a_gatts_if;
 extern uint16_t a_conn_id;
 extern cccd_t a_cccd;

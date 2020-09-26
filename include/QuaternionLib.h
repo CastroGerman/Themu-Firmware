@@ -39,8 +39,8 @@ typedef struct vector
 vector_t rotateVector(vector_t vector, qHamiltonForm_t hamiltonForm);
 qPolarForm_t hamilton2polar (qHamiltonForm_t hamiltonForm);
 qHamiltonForm_t polar2hamilton (qPolarForm_t polarForm);
-quaternion_t *vQuaternionCreate(void);
-void vQuaternionSave(quaternion_t *_quaternion, float _q0, float _q1, float _q2, float _q3);
-void vQuaternionPrint(quaternion_t *_quaternion);
+quaternion_t *createQuaternion(void);
+void saveQuaternion(quaternion_t *_quaternion, float _q0, float _q1, float _q2, float _q3);
+void printQuaternion(quaternion_t *_quaternion);
 
 #endif

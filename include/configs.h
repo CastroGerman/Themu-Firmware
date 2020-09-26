@@ -11,14 +11,15 @@
 
 //Core
 #define ENABLE_THEMU_BLE
-#define ENABLE_THEMU_IMU
-//#define ENABLE_THEMU_ADC
+//#define ENABLE_THEMU_IMU
+#define ENABLE_THEMU_ADC
 
 //Logs
-//#define ENABLE_THEMU_LOGS
-#define ENABLE_THEMU_BLE_LOGS
-#define ENABLE_THEMU_ADC_LOGS
-#define ENABLE_THEMU_IMU_LOGS
-
+#define ENABLE_THEMU_LOGS
+#ifdef ENABLE_THEMU_LOGS
+    #define ENABLE_THEMU_BLE_LOGS
+    //#define ENABLE_THEMU_ADC_LOGS
+    //#define ENABLE_THEMU_IMU_LOGS
+#endif
 //Test
 //#define ENABLE_VECTOR_ROTATION

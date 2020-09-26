@@ -24,7 +24,6 @@ qHamiltonForm_t polar2hamilton (qPolarForm_t polarForm)
     return hamiltonForm;
 }
 
-
 vector_t rotateVector(vector_t vector, qHamiltonForm_t hamiltonForm)
 {
     vector_t rotated;
@@ -44,14 +43,14 @@ vector_t rotateVector(vector_t vector, qHamiltonForm_t hamiltonForm)
     return rotated;
 }
 
-quaternion_t *vQuaternionCreate(void)
+quaternion_t *createQuaternion(void)
 {
     quaternion_t *_quaternion = pvPortMalloc(sizeof(quaternion_t));
     return _quaternion;
 }
 
 //Madgwick to quaternion type
-void vQuaternionSave(quaternion_t *_quaternion, float _q0, float _q1, float _q2, float _q3)
+void saveQuaternion(quaternion_t *_quaternion, float _q0, float _q1, float _q2, float _q3)
 {
     memcpy(_quaternion->value, (const void *) &_q0, sizeof(_q0));
     memcpy(_quaternion->value+4, (const void *) &_q1, sizeof(_q1));
@@ -59,7 +58,7 @@ void vQuaternionSave(quaternion_t *_quaternion, float _q0, float _q1, float _q2,
     memcpy(_quaternion->value+12, (const void *) &_q3, sizeof(_q3));
 }
 
-void vQuaternionPrint(quaternion_t *_quaternion)
+void printQuaternion(quaternion_t *_quaternion)
 {
     uint32_t _q0 = (_quaternion->value[3]<<24)|(_quaternion->value[2]<<16)|(_quaternion->value[1]<<8)|(_quaternion->value[0]);
     uint32_t _q1 = (_quaternion->value[7]<<24)|(_quaternion->value[6]<<16)|(_quaternion->value[5]<<8)|(_quaternion->value[4]);

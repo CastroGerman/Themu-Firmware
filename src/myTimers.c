@@ -2,6 +2,7 @@
 #include "myTasks.h"
 #include "configs.h"
 #include "myGPIO.h"
+#include "myBLE.h"
 
 myTimers_t myTimer[2];
 
@@ -96,18 +97,21 @@ void tG0Timer0 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-            xTaskNotify(thGPIO, 2, eSetValueWithOverwrite);
+            xTaskNotify(thGPIO, 1, eSetValueWithOverwrite);
             #ifdef ENABLE_THEMU_IMU
             xTaskNotify(thMPU6050, 1, eSetValueWithOverwrite);
+            #endif
+            
+            #if defined ENABLE_THEMU_BLE_LOGS && defined ENABLE_THEMU_BLE
+            bleLogMsg = "BLE notif 2\n";
+            xTaskNotify(thBLE, 2, eSetValueWithOverwrite);
             #endif
         }
         else
         {
             printf("TIMEOUT waiting notification on tG0Timer0\n");
         }
-
     }
-    
 }
 
 void tG0Timer1 (void *pv)
@@ -118,6 +122,7 @@ void tG0Timer1 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
+            //xTaskNotify(thGPIO, 2, eSetValueWithOverwrite);
             #ifdef ENABLE_THEMU_BLE
             xTaskNotify(thBLE, 1, eSetValueWithOverwrite);
             #endif
@@ -126,7 +131,5 @@ void tG0Timer1 (void *pv)
         {
             printf("TIMEOUT waiting notification on tG0Timer1\n");
         }
-
-    }
-    
+    }  
 }
