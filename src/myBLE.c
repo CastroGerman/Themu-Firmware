@@ -282,7 +282,8 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
         if(param->read.handle == flex_sensor_charvalue_handle)
         {  
             #ifdef ENABLE_THEMU_ADC
-            prepReadADC1Channel(ADC_CHANNEL_6);              
+            prepReadFlexSensors();
+            //prepReadADC1Channel(ADC_CHANNEL_6);              
             #else
             prepReadDummy();
             #endif
@@ -772,7 +773,8 @@ void tBLE (void *pv)
             if(a_cccd.flex_sensor)
             {
                 #ifdef ENABLE_THEMU_ADC
-                prepReadADC1Channel(ADC1_CHANNEL_6);
+                //prepReadADC1Channel(ADC1_CHANNEL_6);
+                prepReadFlexSensors();
                 esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, flex_sensor_charvalue_handle,
                         a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
                 vPortFree(a_prepare_read_env.prepare_buf);

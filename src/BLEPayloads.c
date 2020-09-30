@@ -34,6 +34,22 @@ void prepReadADC1Channel(adc1_channel_t _channel)
     }
 }
 
+void prepReadFlexSensors(void)
+{
+    if(a_prepare_read_env.prepare_buf == NULL)
+    {
+        uint8_t flexSensor[5];
+        flexSensor[0] = (uint8_t)readPorcentualADC1Channel(ADC_CHANNEL_3);
+        flexSensor[1] = (uint8_t)readPorcentualADC1Channel(ADC_CHANNEL_4);
+        flexSensor[2] = (uint8_t)readPorcentualADC1Channel(ADC_CHANNEL_5);
+        flexSensor[3] = (uint8_t)readPorcentualADC1Channel(ADC_CHANNEL_6);
+        flexSensor[4] = (uint8_t)readPorcentualADC1Channel(ADC_CHANNEL_7);
+        a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(flexSensor));
+        a_prepare_read_env.prepare_len = sizeof(flexSensor);
+        memcpy(a_prepare_read_env.prepare_buf, flexSensor, a_prepare_read_env.prepare_len); 
+    }
+}
+
 void prepReadGPIOLevel(gpio_num_t _gpioNum)
 {
     if(a_prepare_read_env.prepare_buf == NULL)

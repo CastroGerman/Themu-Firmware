@@ -61,9 +61,9 @@ void InitADC1 (void)
     adc1_config_width(ADC_WIDTH_BIT_10);
     adc1_config_channel_atten(ADC_CHANNEL_0, ADC_ATTEN_DB_11);
     adc1_config_channel_atten(ADC_CHANNEL_3, ADC_ATTEN_DB_11);
-    adc1_config_channel_atten(ADC_CHANNEL_4, ADC_ATTEN_DB_11);
-    adc1_config_channel_atten(ADC_CHANNEL_5, ADC_ATTEN_DB_11);
-    adc1_config_channel_atten(ADC_CHANNEL_6, ADC_ATTEN_DB_11);
+    adc1_config_channel_atten(ADC_CHANNEL_4, ADC_ATTEN_DB_0);
+    adc1_config_channel_atten(ADC_CHANNEL_5, ADC_ATTEN_DB_2_5);
+    adc1_config_channel_atten(ADC_CHANNEL_6, ADC_ATTEN_DB_6);
     adc1_config_channel_atten(ADC_CHANNEL_7, ADC_ATTEN_DB_11);
     
     //Characterize ADC
