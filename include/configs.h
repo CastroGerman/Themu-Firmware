@@ -17,8 +17,8 @@
 //Logs
 #define ENABLE_THEMU_LOGS
 #ifdef ENABLE_THEMU_LOGS
-    #define ENABLE_THEMU_BLE_LOGS
-    //#define ENABLE_THEMU_ADC_LOGS
+    //#define ENABLE_THEMU_BLE_LOGS
+    #define ENABLE_THEMU_ADC_LOGS
     //#define ENABLE_THEMU_IMU_LOGS
 #endif
 //Test

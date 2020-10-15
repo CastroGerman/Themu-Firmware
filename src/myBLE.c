@@ -229,7 +229,9 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
     }
     else if(param->write.handle == fb_led_charvalue_handle)
     {
-        gpio_set_level(GPIO_NUM_2,param->write.value[0]);
+        gpio_set_level(FB_LED_RED_PIN,(param->write.value[0])&BIT(0));
+        gpio_set_level(FB_LED_GREEN_PIN,(param->write.value[0])&BIT(1));
+        gpio_set_level(FB_LED_BLUE_PIN,(param->write.value[0])&BIT(2));
     }
     else if(param->write.handle == fb_led_descr_handle)
     {
@@ -282,10 +284,9 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
         if(param->read.handle == flex_sensor_charvalue_handle)
         {  
             #ifdef ENABLE_THEMU_ADC
-            prepReadFlexSensors();
-            //prepReadADC1Channel(ADC_CHANNEL_6);              
+            prepReadFlexSensors();             
             #else
-            prepReadDummy();
+            prepReadDummy(5);
             #endif
         }
         else if(param->read.handle == flex_sensor_descr_handle)
@@ -294,18 +295,18 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
         }
         else if(param->read.handle == restart_charvalue_handle)
         {
-            prepReadDummy();
+            prepReadDummyBytes(1);
         }
         else if(param->read.handle == restart_descr_handle)
         {
-            prepReadDummy();
+            prepReadDummyBytes(2);
         }
         else if(param->read.handle == quaternion_charvalue_handle)
         {
             #ifdef ENABLE_THEMU_IMU
             prepReadQuaternion(quaternion);
             #else
-            prepReadDummy();
+            prepReadDummyBytes(16);
             #endif
         }
         else if(param->read.handle == quaternion_descr_handle)
@@ -314,23 +315,27 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
         }
         else if(param->read.handle == fb_led_charvalue_handle)
         {
-            prepReadGPIOLevel(FB_LED_PIN);
+            prepReadFBLed();
         }
         else if(param->read.handle == fb_led_descr_handle)
         {
-            prepReadDummy();
+            prepReadDummyBytes(2);
         }
         else if(param->read.handle == battery_charvalue_handle)
         {
-            prepReadDummy();
+            #ifdef ENABLE_THEMU_ADC
+            prepReadBatteryLevel();
+            #else
+            prepReadDummy(1);
+            #endif
         }
         else if(param->read.handle == battery_descr_handle)
         {
-            prepReadDummy();
+            prepReadDummyBytes(2);
         }
         else if(param->read.handle == battery_descr2_handle)
         {
-            prepReadDummy();
+            prepReadCCCD(a_cccd.battery);
         }
         #ifdef ENABLE_THEMU_BLE_LOGS
         else if(param->read.handle == log_descr_handle)
@@ -340,7 +345,7 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
         #endif
         else
         {
-            prepReadDummy();
+            prepReadDummyBytes(1);
         }
         
         rsp.attr_value.len = a_prepare_read_env.prepare_len;
@@ -769,17 +774,19 @@ void tBLE (void *pv)
     {
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
-        {
+        {   
+            discardActualPayload();
             if(a_cccd.flex_sensor)
             {
                 #ifdef ENABLE_THEMU_ADC
-                //prepReadADC1Channel(ADC1_CHANNEL_6);
                 prepReadFlexSensors();
+                #else
+                prepReadDummyBytes(5);
+                #endif
                 esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, flex_sensor_charvalue_handle,
                         a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
                 vPortFree(a_prepare_read_env.prepare_buf);
                 a_prepare_read_env.prepare_buf = NULL;
-                #endif
             }
             if(a_cccd.restart)
             {
@@ -789,11 +796,13 @@ void tBLE (void *pv)
             {
                 #ifdef ENABLE_THEMU_IMU
                 prepReadQuaternion(quaternion);
+                #else
+                prepReadDummyBytes(16);
+                #endif
                 esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, quaternion_charvalue_handle,
                         a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
                 vPortFree(a_prepare_read_env.prepare_buf);
                 a_prepare_read_env.prepare_buf = NULL;
-                #endif
             }
             if(a_cccd.fb_led)
             {
@@ -801,9 +810,16 @@ void tBLE (void *pv)
             }
             if(a_cccd.battery)
             {
-
+                #ifdef ENABLE_THEMU_ADC
+                prepReadBatteryLevel();
+                #else 
+                prepReadDummyBytes(1);
+                #endif
+                esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, battery_charvalue_handle,
+                        a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
+                vPortFree(a_prepare_read_env.prepare_buf);
+                a_prepare_read_env.prepare_buf = NULL;
             }
-            
         }
         #ifdef ENABLE_THEMU_BLE_LOGS
         else if(notifycount == 2)

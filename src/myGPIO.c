@@ -58,17 +58,17 @@ void InitADC1 (void)
      * 
      * For maximum accuracy, use the ADC calibration APIs and measure voltages within these recommended ranges.
      */
-    adc1_config_width(ADC_WIDTH_BIT_10);
-    adc1_config_channel_atten(ADC_CHANNEL_0, ADC_ATTEN_DB_11);
-    adc1_config_channel_atten(ADC_CHANNEL_3, ADC_ATTEN_DB_11);
-    adc1_config_channel_atten(ADC_CHANNEL_4, ADC_ATTEN_DB_0);
-    adc1_config_channel_atten(ADC_CHANNEL_5, ADC_ATTEN_DB_2_5);
-    adc1_config_channel_atten(ADC_CHANNEL_6, ADC_ATTEN_DB_6);
-    adc1_config_channel_atten(ADC_CHANNEL_7, ADC_ATTEN_DB_11);
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(FLEX1_CHANNEL, FLEX1_CHANNEL_ATT);
+    adc1_config_channel_atten(FLEX2_CHANNEL, FLEX2_CHANNEL_ATT);
+    adc1_config_channel_atten(FLEX3_CHANNEL, FLEX3_CHANNEL_ATT);
+    adc1_config_channel_atten(FLEX4_CHANNEL, FLEX4_CHANNEL_ATT);
+    adc1_config_channel_atten(FLEX5_CHANNEL, FLEX5_CHANNEL_ATT);
+    adc1_config_channel_atten(BATT_CHANNEL, BATT_CHANNEL_ATT);
     
     //Characterize ADC
     adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
+    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_0, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
     print_char_val_type(val_type);
 }
 
@@ -76,12 +76,13 @@ void InitGPIO (void)
 {
     gpio_config_t io_config;
 
+    //Setting RGB LED on board
     //disable interrupt
     io_config.intr_type = GPIO_PIN_INTR_DISABLE;
-    //set as output mode
-    io_config.mode = GPIO_MODE_OUTPUT;
-    //bit mask of the pins that you want to set,e.g.GPIO18/19
-    io_config.pin_bit_mask = GPIO_SEL_17;
+    //set as input/output mode
+    io_config.mode = GPIO_MODE_INPUT_OUTPUT;
+    //bit mask of the pins that you want to set
+    io_config.pin_bit_mask = GPIO_SEL_27;
     //disable pull-down mode
     io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
     //disable pull-up mode
@@ -89,22 +90,21 @@ void InitGPIO (void)
     //configure GPIO with the given settings
     gpio_config(&io_config);
 
-    //interrupt of falling edge
-    io_config.intr_type = GPIO_PIN_INTR_NEGEDGE;
-    //bit mask of the pins
-    io_config.pin_bit_mask = GPIO_SEL_16;
-    //set as input mode
-    io_config.mode = GPIO_MODE_INPUT;
-    //enable pull-up mode
+    io_config.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_config.mode = GPIO_MODE_INPUT_OUTPUT;
+    io_config.pin_bit_mask = GPIO_SEL_26;
+    io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_config.pull_up_en = GPIO_PULLUP_ENABLE;
     gpio_config(&io_config);
-    //change gpio intrrupt type for one pin
-    //gpio_set_intr_type(GPIO_SEL_16, GPIO_INTR_ANYEDGE);
-    //install gpio isr service
-    gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
-    //hook isr handler for specific gpio pin
-    gpio_isr_handler_add(GPIO_NUM_16, gpio16_isr_handler, (void*) NULL);
-    
+
+    io_config.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_config.mode = GPIO_MODE_INPUT_OUTPUT;
+    io_config.pin_bit_mask = GPIO_SEL_12;
+    io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_config.pull_up_en = GPIO_PULLUP_ENABLE;
+    gpio_config(&io_config);
+
+
     //Setting LED on board
     io_config.intr_type = GPIO_PIN_INTR_DISABLE;
     io_config.mode = GPIO_MODE_INPUT_OUTPUT;
@@ -112,6 +112,20 @@ void InitGPIO (void)
     io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_config.pull_up_en = GPIO_PULLUP_ENABLE;
     gpio_config(&io_config);
+
+    //Setting glove button
+    io_config.intr_type = GPIO_PIN_INTR_NEGEDGE;
+    io_config.pin_bit_mask = GPIO_SEL_25;
+    io_config.mode = GPIO_MODE_INPUT;
+    io_config.pull_up_en = GPIO_PULLUP_ENABLE;
+    io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    gpio_config(&io_config);
+    //change gpio intrrupt type for one pin
+    //gpio_set_intr_type(GPIO_SEL_25, GPIO_INTR_ANYEDGE);
+    //install gpio isr service
+    gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
+    //hook isr handler for specific gpio pin
+    gpio_isr_handler_add(BUTTON_PIN, glove_button_isr_handler, (void*) NULL);
 }
 
 int readPorcentualADC1Channel(adc1_channel_t _channel)
@@ -126,22 +140,22 @@ int readPorcentualADC1Channel(adc1_channel_t _channel)
     #ifdef ENABLE_THEMU_ADC_LOGS
     uint32_t volts;
     esp_adc_cal_get_voltage(_channel,adc_chars,&volts);
-    printf("ADC Raw: %d\tLength: %d\n",adcRead,volts);//sizeof(adcRead));
+    printf("ADC_CH%d: \tRaw: %d \tVolts: %d ", _channel, adcRead, volts);//sizeof(adcRead));
     #endif
     
     adcRead = (adcRead-ADC_CAL_MIN)*100/(ADC_CAL_MAX-ADC_CAL_MIN); 
     
     #ifdef ENABLE_THEMU_ADC_LOGS
-    printf("ADC Porcentual: %d\n",adcRead);
+    printf("\tPorcentual: %d\n",adcRead);
     #endif
     
     return adcRead;
 }
 
-void IRAM_ATTR gpio16_isr_handler (void *pv)
+void IRAM_ATTR glove_button_isr_handler (void *pv)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xTaskNotifyFromISR(thGPIO, 2, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
+    xTaskNotifyFromISR(thGPIO, 1, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
     if(xHigherPriorityTaskWoken != pdFALSE){}
 }
 
@@ -153,18 +167,17 @@ void tGPIO (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);//pdTRUE = as a binary semaphore. pdFALSE = as a counting semaphore.
         if(notifycount == 1)
         {
-            
-            //printf("Interrumpio notify 1 GPIO 2 \n"); 
             /*Remember that u can't read OUTPUTS, only INPUTS.
             * Or set the GPIO mode to GPIO_MODE_INPUT_OUTPUT.*/
-            if(gpio_get_level(GPIO_NUM_2))
+            if(gpio_get_level(FB_LED_PIN))
             {
-                gpio_set_level(GPIO_NUM_2, 0);
+                gpio_set_level(FB_LED_PIN, LED_OFF);
             }
             else
             {
-                gpio_set_level(GPIO_NUM_2, 1);
-            }          
+                gpio_set_level(FB_LED_PIN, LED_ON);
+            }  
+            printf("Notified GPIO 1\n");        
         }
         else if (notifycount == 2)
         {
