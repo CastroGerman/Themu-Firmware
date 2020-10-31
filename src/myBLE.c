@@ -4,6 +4,7 @@
 #include "BLEPayloads.h"
 #include <string.h> //memcpy & memset
 #include "configs.h"
+#include "myTimers.h"
 
 /*Declare the static functions & variables*/
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
@@ -226,6 +227,14 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
     else if(param->write.handle == quaternion_descr_handle)
     {
         a_cccd.quaternion = getCCCD(param);
+        if(a_cccd.quaternion)
+        {
+            timer_start(TIMER_GROUP_0, TIMER_0);
+        }
+        else
+        {
+            timer_pause(TIMER_GROUP_0, TIMER_0);
+        }
     }
     else if(param->write.handle == fb_led_charvalue_handle)
     {
@@ -286,7 +295,7 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
             #ifdef ENABLE_THEMU_ADC
             prepReadFlexSensors();             
             #else
-            prepReadDummy(5);
+            prepReadDummyBytes(5);
             #endif
         }
         else if(param->read.handle == flex_sensor_descr_handle)
@@ -326,7 +335,7 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
             #ifdef ENABLE_THEMU_ADC
             prepReadBatteryLevel();
             #else
-            prepReadDummy(1);
+            prepReadDummyBytes(1);
             #endif
         }
         else if(param->read.handle == battery_descr_handle)

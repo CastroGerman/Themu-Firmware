@@ -2,6 +2,7 @@
 #include "myBLE.h"
 #include <string.h>
 
+
 void prepReadDummyBytes(int _bytes)
 {
     if(a_prepare_read_env.prepare_buf == NULL)

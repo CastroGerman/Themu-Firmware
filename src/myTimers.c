@@ -38,7 +38,7 @@ void InitTimer (int _timer_group, int _timer_index, bool _auto_reload, double _t
     
     timer_set_alarm(_timer_group, _timer_index, TIMER_ALARM_EN);
     timer_enable_intr(_timer_group, _timer_index);
-    timer_start(_timer_group, _timer_index);
+    //timer_start(_timer_group, _timer_index);
 }
 
 void IRAM_ATTR g0_timer0_isr_handler (void *pv)

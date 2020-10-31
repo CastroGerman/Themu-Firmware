@@ -13,6 +13,7 @@
 #include "myTasks.h"
 #include <string.h>
 #include "configs.h"
+#include "MadgwickAHRS.h"
 static esp_adc_cal_characteristics_t *adc_chars;
 
 static void check_efuse()
@@ -171,13 +172,17 @@ void tGPIO (void *pv)
             * Or set the GPIO mode to GPIO_MODE_INPUT_OUTPUT.*/
             if(gpio_get_level(FB_LED_PIN))
             {
+                q0 = 1.0f;
+                q1 = 0.0f;
+                q2 = 0.0f;
+                q3 = 0.0f;
                 gpio_set_level(FB_LED_PIN, LED_OFF);
             }
             else
             {
                 gpio_set_level(FB_LED_PIN, LED_ON);
             }  
-            printf("Notified GPIO 1\n");        
+            //printf("Notified GPIO 1\n");        
         }
         else if (notifycount == 2)
         {
