@@ -21,5 +21,7 @@
     //#define ENABLE_THEMU_ADC_LOGS
     //#define ENABLE_THEMU_IMU_LOGS
 #endif
+
 //Test
 //#define ENABLE_VECTOR_ROTATION
+//#define ENABLE_LIVE_PLOT

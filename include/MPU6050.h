@@ -31,10 +31,10 @@
 
 /*
 *   AFS_SEL     Full Scale Range        LSB Sensitivity
-*   0               +/- 2g                  16384 LSB/g
-*   1               +/- 4g                  8192 LSB/g
-*   2               +/- 8g                  4096 LSB/g
-*   3               +/- 16g                 2048 LSB/g
+*   0               +/- 2 g                 16384 LSB/g
+*   1               +/- 4 g                 8192 LSB/g
+*   2               +/- 8 g                 4096 LSB/g
+*   3               +/- 16 g                2048 LSB/g
 */
 #define AFS_SEL         0x0
 

@@ -7,6 +7,7 @@
 #include <string.h>
 #include "configs.h"
 
+
 quaternion_t *quaternion;
 
 void InitMPU6050 (void)
@@ -146,7 +147,7 @@ void getMPU6050Offset(double *_offsetValues)
 
 void printValues(double *_values)
 {
-    printf("Values:\naccelX: %f\t accelY: %f\t accelZ: %f\t temp: %f\t gryoX: %f\t gryoY: %f\t gryoZ: %f\n",
+    printf("accelX: %f\t accelY: %f\t accelZ: %f\t temp: %f\t gryoX: %f\t gryoY: %f\t gryoZ: %f\n",
             _values[accelX],_values[accelY],_values[accelZ],_values[temp],_values[gyroX],_values[gyroY],_values[gyroZ]);
 }
 
@@ -171,13 +172,16 @@ void tMPU6050 (void *pv)
                                 processedValues[accelX],processedValues[accelY],processedValues[accelZ]);
             saveQuaternion(quaternion,q0,q1,q2,q3);
             
-            #ifdef ENABLE_THEMU_IMU_LOGS
-            printf("MPU ");
-            printValues(mpuValues);
-            printf("Offset ");
-            printValues(offsetValues);
-            printf("Processed ");
+            
+            #if defined ENABLE_THEMU_IMU_LOGS || defined ENABLE_LIVE_PLOT
+            //printf("Processed Values:\n");
             printValues(processedValues);
+            #endif
+            #ifdef ENABLE_THEMU_IMU_LOGS
+            printf("MPU Values:\n");
+            printValues(mpuValues);
+            printf("Offset Values:\n");
+            printValues(offsetValues);
             printQuaternion(quaternion);
             printf("Madgwick Quaternion Reading:\nQ0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",q0,q1,q2,q3);
             #endif
@@ -195,7 +199,8 @@ void tMPU6050 (void *pv)
             p.k=0;
             prot = rotateVector(p,myQuat.hamiltonForm);
             printf("Vector Rotation Info:\npi=%f\tpj=%f\tpk=%f\tQ0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",prot.i,prot.j,prot.k,q0,q1,q2,q3);
-           #endif
+            #endif
+
         }
         else
         {

@@ -98,7 +98,7 @@ void tG0Timer0 (void *pv)
         if(notifycount == 1)
         {
             #ifdef ENABLE_THEMU_IMU
-            xTaskNotify(thMPU6050, 1, eSetValueWithOverwrite);
+            xTaskNotify(thMPU6050, 1, eSetValueWithoutOverwrite);
             #endif
             
             #if defined ENABLE_THEMU_BLE_LOGS && defined ENABLE_THEMU_BLE
