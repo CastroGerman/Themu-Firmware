@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "QuaternionLib.h"
 
+
 #define MPU6050_ADDRESS 0x68 // I2C address of MPU6050
 
 /*

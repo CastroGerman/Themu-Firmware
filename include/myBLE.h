@@ -52,7 +52,6 @@ Characteristic descriptor handle*/
     #define LOG_DESCR_UUID          0x2902
     #define LOG_NUM_HANDLE          4
 #endif
-
 #define TEST_DEVICE_NAME    "GATTS_THEMU"
 #define GATTS_TAG           "GATTS_THEMU_INFO"
 
@@ -64,7 +63,6 @@ Characteristic descriptor handle*/
 
 #define PROFILE_NUM         1
 #define PROFILE_A_APP_ID    0
-
 
 #define INDICATIONS_ENABLE      0x0002
 #define NOTIFICATION_ENABLE     0x0001

@@ -40,5 +40,4 @@ void readADC1_delete(void);
 void IRAM_ATTR glove_button_isr_handler (void *pv);
 void tGPIO (void *pv);
 
-
 #endif /* MYGPIO_H_ */

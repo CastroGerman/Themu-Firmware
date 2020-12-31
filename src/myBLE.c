@@ -27,8 +27,8 @@ static uint8_t raw_adv_data[] = {
         #else
         0x0b, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x0f, 0x18  /*0x03 = Complete List of 16-bit Service Class UUIDs*/
         #endif
-
         };
+
 static uint8_t raw_scan_rsp_data[] = {
         0x06, 0x09, 0x54, 0x48, 0x45, 0x4d, 0x55 /*0x09 = Complete Local Name*/
 };
@@ -50,8 +50,7 @@ static esp_ble_adv_params_t adv_params = {
     //.peer_addr_type       =
     .channel_map        = ADV_CHNL_ALL,
     .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
-};
-
+}
 /* One gatt-based profile one app_id and one gatts_if, this array will store the gatts_if returned by ESP_GATTS_REG_EVT */
 static struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
     [PROFILE_A_APP_ID] = {
@@ -69,8 +68,6 @@ prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
 esp_gatt_if_t a_gatts_if;
 uint16_t a_conn_id;
 cccd_t a_cccd;
-
-
 
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
@@ -202,7 +199,6 @@ static void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, 
     }
     prepare_write_env->prepare_len = 0;
 }
-
 
 static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
 {
@@ -373,7 +369,6 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
     switch (event) {
     case ESP_GATTS_REG_EVT:
         ESP_LOGI(GATTS_TAG, "REGISTER_APP_EVT, status %d, app_id %d\n", param->reg.status, param->reg.app_id);
-
         esp_err_t set_dev_name_ret = esp_ble_gap_set_device_name(TEST_DEVICE_NAME); //Used if not advertising cuztomized raw data.
         if (set_dev_name_ret){
             ESP_LOGE(GATTS_TAG, "set device name failed, error code = %x", set_dev_name_ret);
@@ -622,7 +617,6 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         a_gatts_if = gatts_if;
         a_conn_id = param->connect.conn_id;
         disableAllNotifications();
-        
         break;
     }
     case ESP_GATTS_DISCONNECT_EVT:

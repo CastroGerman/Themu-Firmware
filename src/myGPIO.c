@@ -121,6 +121,7 @@ void InitGPIO (void)
     io_config.pull_up_en = GPIO_PULLUP_ENABLE;
     io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
     gpio_config(&io_config);
+
     //change gpio intrrupt type for one pin
     //gpio_set_intr_type(GPIO_SEL_25, GPIO_INTR_ANYEDGE);
     //install gpio isr service

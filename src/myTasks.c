@@ -7,6 +7,8 @@
 
 xTaskHandle thGPIO = NULL, thG0Timer0 = NULL, thG0Timer1 = NULL, thMPU6050 = NULL, thBLE = NULL, thIMUAnalyst = NULL;
 
+xTaskHandle thGPIO = NULL, thG0Timer0 = NULL, thG0Timer1 = NULL, thMPU6050 = NULL;
+
 void InitTasks(void)
 {
     xTaskCreatePinnedToCore(tGPIO, (const char *) "tGPIO",              configMINIMAL_STACK_SIZE*5, NULL, (tskIDLE_PRIORITY + 1UL), &thGPIO, 1);

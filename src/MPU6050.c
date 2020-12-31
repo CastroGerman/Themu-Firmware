@@ -161,7 +161,7 @@ void tMPU6050 (void *pv)
 
     getMPU6050Offset(offsetValues);
 
-	while(1) {
+    while(1) {
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
