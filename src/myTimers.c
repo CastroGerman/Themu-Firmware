@@ -1,5 +1,8 @@
 #include "myTimers.h"
 #include "myTasks.h"
+#include "configs.h"
+#include "myGPIO.h"
+#include "myBLE.h"
 
 myTimers_t myTimer[2];
 
@@ -35,17 +38,9 @@ void InitTimer (int _timer_group, int _timer_index, bool _auto_reload, double _t
     
     timer_set_alarm(_timer_group, _timer_index, TIMER_ALARM_EN);
     timer_enable_intr(_timer_group, _timer_index);
-    timer_start(_timer_group, _timer_index);
+    //timer_start(_timer_group, _timer_index);
 }
-/*
-pxHigherPriorityTaskWoken: vTaskNotifyGiveFromISR() will set *pxHigherPriorityTaskWoken 
-to pdTRUE if sending the notification caused the task to which the notification was
-sent to leave the Blocked state, and the unblocked task has a priority higher 
-than the currently running task. If vTaskNotifyGiveFromISR() sets this value 
-to pdTRUE then a context switch should be requested before the interrupt is exited. 
-How a context switch is requested from an ISR is dependent on the port - see 
-the documentation page for the port in use.
-*/
+
 void IRAM_ATTR g0_timer0_isr_handler (void *pv)
 {
     TIMERG0.hw_timer[TIMER_0].update = 1; //To read registers
@@ -68,36 +63,30 @@ void IRAM_ATTR g0_timer0_isr_handler (void *pv)
         // ISR uses port specific syntax.  Check the demo task for your port
         // to find the syntax required.
         //vTaskSwitchContext(); ?? Investigate
+
+        /*
+        pxHigherPriorityTaskWoken: vTaskNotifyGiveFromISR() will set *pxHigherPriorityTaskWoken 
+        to pdTRUE if sending the notification caused the task to which the notification was
+        sent to leave the Blocked state, and the unblocked task has a priority higher 
+        than the currently running task. If vTaskNotifyGiveFromISR() sets this value 
+        to pdTRUE then a context switch should be requested before the interrupt is exited. 
+        How a context switch is requested from an ISR is dependent on the port - see 
+        the documentation page for the port in use.
+        */
     }
     
 }
 
 void IRAM_ATTR g0_timer1_isr_handler (void *pv)
 {
-    TIMERG0.hw_timer[TIMER_1].update = 1;
+    TIMERG0.hw_timer[TIMER_1].update = 1; 
     myTimer[TIMER_1].timer_counter_value = 
     ((uint64_t) TIMERG0.hw_timer[TIMER_1].cnt_high) << 32 | TIMERG0.hw_timer[TIMER_1].cnt_low;
-
     TIMERG0.int_clr_timers.t1 = 1; 
-   
-    timer_set_counter_value(TIMER_GROUP_0, TIMER_1, 0x00000000ULL); //Why drift?
-    /* Drift as well. The same way.
-    TIMERG0.hw_timer[1].cnt_high = 0;
-    TIMERG0.hw_timer[1].cnt_low = 0;
-    TIMERG0.hw_timer[1].reload = 1;
-    */
-
-    // Solution that doesn't drift:
-    //myTimer[1].timer_counter_value += (uint64_t) (G0_TIMER1_INTERVAL_SEC * TIMER_SCALE);
-    //TIMERG0.hw_timer[1].alarm_high = (uint32_t) (myTimer[1].timer_counter_value >> 32);
-    //TIMERG0.hw_timer[1].alarm_low = (uint32_t) myTimer[1].timer_counter_value;
-
-    TIMERG0.hw_timer[TIMER_1].config.alarm_en = TIMER_ALARM_EN;
-    
+    TIMERG0.hw_timer[TIMER_1].config.alarm_en = TIMER_ALARM_EN;  
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     vTaskNotifyGiveFromISR(thG0Timer1, &xHigherPriorityTaskWoken);
     if(xHigherPriorityTaskWoken != pdFALSE){}
-    
 }
 
 void tG0Timer0 (void *pv)
@@ -108,19 +97,20 @@ void tG0Timer0 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-            xTaskNotify(thGPIO, 2, eSetValueWithOverwrite);
-            xTaskNotify(thMPU6050, 1, eSetValueWithOverwrite);
-            //printf("Las cuentas al entrar a IRQ Timer0: %lld\n", myTimer[0].timer_counter_value);
-            //timer_get_counter_value(TIMER_GROUP_0, TIMER_0, &myTimer[0].timer_counter_value);
-            //printf("Las cuentas en la tarea Timer0: %lld\n", myTimer[0].timer_counter_value);
+            #ifdef ENABLE_THEMU_IMU
+            xTaskNotify(thMPU6050, 1, eSetValueWithoutOverwrite);
+            #endif
+            
+            #if defined ENABLE_THEMU_BLE_LOGS && defined ENABLE_THEMU_BLE
+            bleLogMsg = "BLE notif 2\n";
+            xTaskNotify(thBLE, 2, eSetValueWithOverwrite);
+            #endif
         }
         else
         {
-            printf("TIMEOUT esperando notificacion en tG0Timer0\n");
+            printf("TIMEOUT waiting notification on tG0Timer0\n");
         }
-
     }
-    
 }
 
 void tG0Timer1 (void *pv)
@@ -131,15 +121,13 @@ void tG0Timer1 (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-            //printf("Las cuentas al entrar a IRQ Timer1: %lld\n", myTimer[1].timer_counter_value);
-            //timer_get_counter_value(TIMER_GROUP_0, TIMER_1, &myTimer[1].timer_counter_value);
-            //printf("Las cuentas en la tarea Timer1: %lld\n", myTimer[1].timer_counter_value);
+            #ifdef ENABLE_THEMU_BLE
+            xTaskNotify(thBLE, 1, eSetValueWithOverwrite);
+            #endif
         }
         else
         {
-            printf("TIMEOUT esperando notificacion en tG0Timer1\n");
+            printf("TIMEOUT waiting notification on tG0Timer1\n");
         }
-
-    }
-    
+    }  
 }

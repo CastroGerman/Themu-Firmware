@@ -1,12 +1,20 @@
+/**Brief:
+ * GPIO 16 defined as input.
+ * GPIO 17 defined as output.
+ * GPIO 36 defines as channel 0 of ADC1.
+ * GPIO 39 defines as channel 3 of ADC1.
+ * GPIO 32 defines as channel 4 of ADC1.
+ * GPIO 33 defines as channel 5 of ADC1.
+ * GPIO 34 defined as channel 6 of ADC1.
+ * GPIO 35 defines as channel 7 of ADC1.
+ */
 #include "myGPIO.h"
 #include "myBLE.h"
 #include "myTasks.h"
 #include <string.h>
-
+#include "configs.h"
+#include "MadgwickAHRS.h"
 static esp_adc_cal_characteristics_t *adc_chars;
-static const adc_channel_t channel = ADC_CHANNEL_6;     //GPIO34 of ADC1 
-static const adc_atten_t atten = ADC_ATTEN_DB_0;
-static const adc_unit_t unit = ADC_UNIT_1;
 
 static void check_efuse()
 {
@@ -41,13 +49,27 @@ void InitADC1 (void)
     //Check if Two Point or Vref are burned into eFuse
     check_efuse();
 
-    //Configure ADC
+    /**Configure ADC
+     * Due to ADC characteristics, most accurate results are obtained within the following approximate voltage ranges:
+     * 
+     * - 0dB attenuaton (ADC_ATTEN_DB_0) between 100 and 950mV
+     * - 2.5dB attenuation (ADC_ATTEN_DB_2_5) between 100 and 1250mV
+     * - 6dB attenuation (ADC_ATTEN_DB_6) between 150 to 1750mV
+     * - 11dB attenuation (ADC_ATTEN_DB_11) between 150 to 2450mV
+     * 
+     * For maximum accuracy, use the ADC calibration APIs and measure voltages within these recommended ranges.
+     */
     adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(channel, atten);
-
+    adc1_config_channel_atten(FLEX1_CHANNEL, FLEX1_CHANNEL_ATT);
+    adc1_config_channel_atten(FLEX2_CHANNEL, FLEX2_CHANNEL_ATT);
+    adc1_config_channel_atten(FLEX3_CHANNEL, FLEX3_CHANNEL_ATT);
+    adc1_config_channel_atten(FLEX4_CHANNEL, FLEX4_CHANNEL_ATT);
+    adc1_config_channel_atten(FLEX5_CHANNEL, FLEX5_CHANNEL_ATT);
+    adc1_config_channel_atten(BATT_CHANNEL, BATT_CHANNEL_ATT);
+    
     //Characterize ADC
     adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(unit, atten, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
+    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_0, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
     print_char_val_type(val_type);
 }
 
@@ -55,12 +77,13 @@ void InitGPIO (void)
 {
     gpio_config_t io_config;
 
+    //Setting RGB LED on board
     //disable interrupt
     io_config.intr_type = GPIO_PIN_INTR_DISABLE;
-    //set as output mode
-    io_config.mode = GPIO_MODE_OUTPUT;
-    //bit mask of the pins that you want to set,e.g.GPIO18/19
-    io_config.pin_bit_mask = GPIO_SEL_18;
+    //set as input/output mode
+    io_config.mode = GPIO_MODE_INPUT_OUTPUT;
+    //bit mask of the pins that you want to set
+    io_config.pin_bit_mask = GPIO_SEL_27;
     //disable pull-down mode
     io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
     //disable pull-up mode
@@ -68,44 +91,72 @@ void InitGPIO (void)
     //configure GPIO with the given settings
     gpio_config(&io_config);
 
-    //interrupt of rising edge
-    io_config.intr_type = GPIO_PIN_INTR_NEGEDGE;
-    //bit mask of the pins, use GPIO4/5 here
-    io_config.pin_bit_mask = GPIO_SEL_2;
-    //set as input mode
-    io_config.mode = GPIO_MODE_INPUT;
-    //enable pull-up mode
+    io_config.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_config.mode = GPIO_MODE_INPUT_OUTPUT;
+    io_config.pin_bit_mask = GPIO_SEL_26;
+    io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_config.pull_up_en = GPIO_PULLUP_ENABLE;
     gpio_config(&io_config);
-    
-    //change gpio intrrupt type for one pin
-    //gpio_set_intr_type(GPIO_SEL_2, GPIO_INTR_ANYEDGE);
 
+    io_config.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_config.mode = GPIO_MODE_INPUT_OUTPUT;
+    io_config.pin_bit_mask = GPIO_SEL_12;
+    io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_config.pull_up_en = GPIO_PULLUP_ENABLE;
+    gpio_config(&io_config);
+
+
+    //Setting LED on board
+    io_config.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_config.mode = GPIO_MODE_INPUT_OUTPUT;
+    io_config.pin_bit_mask = GPIO_SEL_2;
+    io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_config.pull_up_en = GPIO_PULLUP_ENABLE;
+    gpio_config(&io_config);
+
+    //Setting glove button
+    io_config.intr_type = GPIO_PIN_INTR_NEGEDGE;
+    io_config.pin_bit_mask = GPIO_SEL_25;
+    io_config.mode = GPIO_MODE_INPUT;
+    io_config.pull_up_en = GPIO_PULLUP_ENABLE;
+    io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    gpio_config(&io_config);
+    //change gpio intrrupt type for one pin
+    //gpio_set_intr_type(GPIO_SEL_25, GPIO_INTR_ANYEDGE);
     //install gpio isr service
     gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
     //hook isr handler for specific gpio pin
-    gpio_isr_handler_add(GPIO_NUM_2, gpio2_isr_handler, (void*) NULL);
+    gpio_isr_handler_add(BUTTON_PIN, glove_button_isr_handler, (void*) NULL);
 }
 
-void readADC1 (void)
+int readPorcentualADC1Channel(adc1_channel_t _channel)
 {
-    uint32_t adc_reading = 0;
+    int adcRead = 0;
     //Multisampling
     for (int i = 0; i < NO_OF_SAMPLES; i++) {
-        adc_reading += adc1_get_raw((adc1_channel_t)channel);
+        adcRead += adc1_get_raw(_channel);
     }
-    adc_reading /= NO_OF_SAMPLES;
-    //Convert adc_reading to voltage in mV
-    uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-    a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(voltage));
-    a_rsp_buf.len = sizeof(voltage);
-    memcpy(a_rsp_buf.rsp_buf, &voltage, a_rsp_buf.len);
+    adcRead /= NO_OF_SAMPLES;
+
+    #ifdef ENABLE_THEMU_ADC_LOGS
+    uint32_t volts;
+    esp_adc_cal_get_voltage(_channel,adc_chars,&volts);
+    printf("ADC_CH%d: \tRaw: %d \tVolts: %d ", _channel, adcRead, volts);//sizeof(adcRead));
+    #endif
+    
+    adcRead = (adcRead-ADC_CAL_MIN)*100/(ADC_CAL_MAX-ADC_CAL_MIN); 
+    
+    #ifdef ENABLE_THEMU_ADC_LOGS
+    printf("\tPorcentual: %d\n",adcRead);
+    #endif
+    
+    return adcRead;
 }
 
-void IRAM_ATTR gpio2_isr_handler (void *pv)
+void IRAM_ATTR glove_button_isr_handler (void *pv)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xTaskNotifyFromISR(thGPIO, 2, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
+    xTaskNotifyFromISR(thGPIO, 1, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
     if(xHigherPriorityTaskWoken != pdFALSE){}
 }
 
@@ -117,36 +168,29 @@ void tGPIO (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);//pdTRUE = as a binary semaphore. pdFALSE = as a counting semaphore.
         if(notifycount == 1)
         {
-            //printf("Interrumpio notify 1 GPIO 2 \n"); 
             /*Remember that u can't read OUTPUTS, only INPUTS.
             * Or set the GPIO mode to GPIO_MODE_INPUT_OUTPUT.*/
-            if(gpio_get_level(GPIO_NUM_2))
+            if(gpio_get_level(FB_LED_PIN))
             {
-                gpio_set_level(GPIO_NUM_18, 0);
+                q0 = 1.0f;
+                q1 = 0.0f;
+                q2 = 0.0f;
+                q3 = 0.0f;
+                gpio_set_level(FB_LED_PIN, LED_OFF);
             }
             else
             {
-                gpio_set_level(GPIO_NUM_18, 1);
-            }           
+                gpio_set_level(FB_LED_PIN, LED_ON);
+            }  
+            //printf("Notified GPIO 1\n");        
         }
         else if (notifycount == 2)
         {
-            /*
-            uint32_t adc_reading = 0;
-            //Multisampling
-            for (int i = 0; i < NO_OF_SAMPLES; i++) {
-                adc_reading += adc1_get_raw((adc1_channel_t)channel);
-            }
-            adc_reading /= NO_OF_SAMPLES;
-            //Convert adc_reading to voltage in mV
-            uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-            printf("Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
-            */
-            //printf("Interrumpio notify 2 GPIO 2 \n"); 
+            readPorcentualADC1Channel(ADC1_CHANNEL_3);
         }
         else
         {
-            printf("TIMEOUT esperando notificacion en tGPIO\n");
+            printf("TIMEOUT waiting notification on tGPIO\n");
         }
     }
 }
