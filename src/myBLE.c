@@ -1,7 +1,10 @@
 #include "myBLE.h"
 #include "MPU6050.h"
 #include "myGPIO.h"
+#include "BLEPayloads.h"
 #include <string.h> //memcpy & memset
+#include "configs.h"
+#include "myTimers.h"
 
 /*Declare the static functions & variables*/
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
@@ -19,8 +22,13 @@ static uint8_t raw_adv_data[] = {
     /*  LEN , TYPE, VALUE   */
         0x02, 0x01, 0x06,       /*0x01 = Flags*/
         0x02, 0x0a, 0xeb,       /*0x0A = Tx Power Level*/
+        #ifdef ENABLE_THEMU_BLE_LOGS
+        0x0d, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x0f, 0x18, 0x00, 0x06  /*0x03 = Complete List of 16-bit Service Class UUIDs*/
+        #else
         0x0b, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x0f, 0x18  /*0x03 = Complete List of 16-bit Service Class UUIDs*/
-};
+        #endif
+
+        };
 static uint8_t raw_scan_rsp_data[] = {
         0x06, 0x09, 0x54, 0x48, 0x45, 0x4d, 0x55 /*0x09 = Complete Local Name*/
 };
@@ -52,8 +60,17 @@ static struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
     },
 };
 
-static prepare_type_env_t a_prepare_write_env;
-rsp_buf_t a_rsp_buf;
+#ifdef ENABLE_THEMU_BLE_LOGS
+char *bleLogMsg;
+#endif
+
+prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
+/*Saving APP parameters to handle notifications*/
+esp_gatt_if_t a_gatts_if;
+uint16_t a_conn_id;
+cccd_t a_cccd;
+
+
 
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
@@ -129,7 +146,7 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
 }
 
 /*The example_write_event_env() function contains the logic for the write long characteristic procedure:*/
-void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
+static void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
     esp_gatt_status_t status = ESP_GATT_OK;
     if (param->write.need_rsp){
         if (param->write.is_prep){
@@ -173,7 +190,7 @@ void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare
     }
 }
 
-void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
+static void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
     if (param->exec_write.exec_write_flag == ESP_GATT_PREP_WRITE_EXEC){
         esp_log_buffer_hex(GATTS_TAG, prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
     }else{
@@ -186,6 +203,170 @@ void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble
     prepare_write_env->prepare_len = 0;
 }
 
+
+static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
+{
+    if (!param->write.is_prep){
+        ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
+        esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
+    }
+
+    
+    if(param->write.handle == flex_sensor_descr_handle)
+    {   
+        a_cccd.flex_sensor = getCCCD(param);
+    }
+    else if(param->write.handle == restart_charvalue_handle)
+    {
+        
+    }
+    else if(param->write.handle == restart_descr_handle)
+    {
+        
+    }
+    else if(param->write.handle == quaternion_descr_handle)
+    {
+        a_cccd.quaternion = getCCCD(param);
+        if(a_cccd.quaternion)
+        {
+            timer_start(TIMER_GROUP_0, TIMER_0);
+        }
+        else
+        {
+            timer_pause(TIMER_GROUP_0, TIMER_0);
+        }
+    }
+    else if(param->write.handle == fb_led_charvalue_handle)
+    {
+        gpio_set_level(FB_LED_RED_PIN,(param->write.value[0])&BIT(0));
+        gpio_set_level(FB_LED_GREEN_PIN,(param->write.value[0])&BIT(1));
+        gpio_set_level(FB_LED_BLUE_PIN,(param->write.value[0])&BIT(2));
+    }
+    else if(param->write.handle == fb_led_descr_handle)
+    {
+      
+    }
+    else if(param->write.handle == battery_descr_handle)
+    {
+        
+    }
+    else if(param->write.handle == battery_descr2_handle)
+    {
+        a_cccd.battery = getCCCD(param);
+    }
+    #ifdef ENABLE_THEMU_BLE_LOGS
+    else if(param->write.handle == log_descr_handle)
+    {
+        a_cccd.ble_log = getCCCD(param);
+    } 
+    #endif
+
+    example_write_event_env(gatts_if, &a_prepare_write_env, param); 
+}
+
+static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
+{
+    esp_gatt_rsp_t rsp;
+    /*This response buffer is managed as a data array instead of a data pointer.
+    * So just a memset() is enough to allocate memory.*/
+    memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
+    rsp.attr_value.handle = param->read.handle;
+
+    /*Supporting long reads (more than the 22 bytes standard payload)*/
+    if (param->read.is_long && a_prepare_read_env.prepare_buf)
+    {
+        int remaining_read = (a_prepare_read_env.prepare_len - param->read.offset);
+        rsp.attr_value.len = (remaining_read) > PAYLOAD_LEN ? PAYLOAD_LEN : remaining_read;
+        memcpy(rsp.attr_value.value, a_prepare_read_env.prepare_buf + param->read.offset, rsp.attr_value.len);
+        if (param->read.offset + rsp.attr_value.len >= a_prepare_read_env.prepare_len) 
+        {
+            if (a_prepare_read_env.prepare_buf) 
+            {
+                vPortFree(a_prepare_read_env.prepare_buf);
+                a_prepare_read_env.prepare_buf = NULL;
+            }
+            a_prepare_read_env.prepare_len = 0;
+        }
+    }else{
+        vPortFree(a_prepare_read_env.prepare_buf);
+        a_prepare_read_env.prepare_buf = NULL;
+        if(param->read.handle == flex_sensor_charvalue_handle)
+        {  
+            #ifdef ENABLE_THEMU_ADC
+            prepReadFlexSensors();             
+            #else
+            prepReadDummyBytes(5);
+            #endif
+        }
+        else if(param->read.handle == flex_sensor_descr_handle)
+        {
+            prepReadCCCD(a_cccd.flex_sensor);
+        }
+        else if(param->read.handle == restart_charvalue_handle)
+        {
+            prepReadDummyBytes(1);
+        }
+        else if(param->read.handle == restart_descr_handle)
+        {
+            prepReadDummyBytes(2);
+        }
+        else if(param->read.handle == quaternion_charvalue_handle)
+        {
+            #ifdef ENABLE_THEMU_IMU
+            prepReadQuaternion(quaternion);
+            #else
+            prepReadDummyBytes(16);
+            #endif
+        }
+        else if(param->read.handle == quaternion_descr_handle)
+        {
+            prepReadCCCD(a_cccd.quaternion);
+        }
+        else if(param->read.handle == fb_led_charvalue_handle)
+        {
+            prepReadFBLed();
+        }
+        else if(param->read.handle == fb_led_descr_handle)
+        {
+            prepReadDummyBytes(2);
+        }
+        else if(param->read.handle == battery_charvalue_handle)
+        {
+            #ifdef ENABLE_THEMU_ADC
+            prepReadBatteryLevel();
+            #else
+            prepReadDummyBytes(1);
+            #endif
+        }
+        else if(param->read.handle == battery_descr_handle)
+        {
+            prepReadDummyBytes(2);
+        }
+        else if(param->read.handle == battery_descr2_handle)
+        {
+            prepReadCCCD(a_cccd.battery);
+        }
+        #ifdef ENABLE_THEMU_BLE_LOGS
+        else if(param->read.handle == log_descr_handle)
+        {
+            prepReadCCCD(a_cccd.ble_log);
+        }
+        #endif
+        else
+        {
+            prepReadDummyBytes(1);
+        }
+        
+        rsp.attr_value.len = a_prepare_read_env.prepare_len;
+        memcpy(rsp.attr_value.value, a_prepare_read_env.prepare_buf, rsp.attr_value.len);  
+    }
+    
+    esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
+                                ESP_GATT_OK, &rsp);
+
+}
+
+
 /*Application Profiles callback functions*/
 static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
 {
@@ -193,7 +374,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
     case ESP_GATTS_REG_EVT:
         ESP_LOGI(GATTS_TAG, "REGISTER_APP_EVT, status %d, app_id %d\n", param->reg.status, param->reg.app_id);
 
-        esp_err_t set_dev_name_ret = esp_ble_gap_set_device_name(TEST_DEVICE_NAME);
+        esp_err_t set_dev_name_ret = esp_ble_gap_set_device_name(TEST_DEVICE_NAME); //Used if not advertising cuztomized raw data.
         if (set_dev_name_ret){
             ESP_LOGE(GATTS_TAG, "set device name failed, error code = %x", set_dev_name_ret);
         }
@@ -230,147 +411,21 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         gl_profile_tab[PROFILE_A_APP_ID].service_id.is_primary = true;
         gl_profile_tab[PROFILE_A_APP_ID].service_id.id.uuid.uuid.uuid16 = BATTERY_SERVICE_UUID;
         esp_ble_gatts_create_service(gatts_if, &gl_profile_tab[PROFILE_A_APP_ID].service_id, BATTERY_NUM_HANDLE);
+        #ifdef ENABLE_THEMU_BLE_LOGS
+        gl_profile_tab[PROFILE_A_APP_ID].service_id.is_primary = true;
+        gl_profile_tab[PROFILE_A_APP_ID].service_id.id.uuid.uuid.uuid16 = LOG_SERVICE_UUID;
+        esp_ble_gatts_create_service(gatts_if, &gl_profile_tab[PROFILE_A_APP_ID].service_id, LOG_NUM_HANDLE);
+        #endif
+        
         break;
     case ESP_GATTS_READ_EVT: {
         ESP_LOGI(GATTS_TAG, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
-        esp_gatt_rsp_t rsp;
-        memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
-        rsp.attr_value.handle = param->read.handle;
-
-        /*Supporting long reads (more than the 22 bytes standard payload)*/
-        if (param->read.is_long && a_rsp_buf.rsp_buf)
-        {
-            int remaining_read = (a_rsp_buf.len - param->read.offset);
-            rsp.attr_value.len = (remaining_read) > 22 ? 22 : remaining_read;
-            memcpy(rsp.attr_value.value, a_rsp_buf.rsp_buf + param->read.offset, rsp.attr_value.len);
-            if (param->read.offset + rsp.attr_value.len >= a_rsp_buf.len) 
-            {
-                if (a_rsp_buf.rsp_buf) 
-                {
-                    vPortFree(a_rsp_buf.rsp_buf);
-                    a_rsp_buf.rsp_buf = NULL;
-                }
-                a_rsp_buf.len = 0;
-            }
-	    }else{
-            vPortFree(a_rsp_buf.rsp_buf);
-            if(param->read.handle == flex_sensor_charvalue_handle)
-            {  
-                readADC1();                
-            }
-            else if(param->read.handle == restart_charvalue_handle)
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == restart_descr_handle)
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == quaternion_charvalue_handle)
-            {
-                vQuaternionSend();
-            }
-            else if(param->read.handle == fb_led_charvalue_handle)
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == fb_led_descr_handle)
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == battery_charvalue_handle)
-            {
-                uint8_t dummy_rsp = 69;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == battery_descr_handle)
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            else if(param->read.handle == battery_descr2_handle)
-            {
-                uint16_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            } 
-            else
-            {
-                uint8_t dummy_rsp = 0;
-                a_rsp_buf.rsp_buf = pvPortMalloc(sizeof(dummy_rsp));
-                a_rsp_buf.len = sizeof(dummy_rsp);
-                memcpy(a_rsp_buf.rsp_buf, &dummy_rsp, a_rsp_buf.len);
-            }
-            
-            
-            rsp.attr_value.len = a_rsp_buf.len;
-            memcpy(rsp.attr_value.value, a_rsp_buf.rsp_buf, rsp.attr_value.len);  
-        }
-	    
-        esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
-                                    ESP_GATT_OK, &rsp);
-        
+        gatts_profile_a_read_handle(gatts_if, param);
         break;
     }
     case ESP_GATTS_WRITE_EVT: {
         ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, conn_id %d, trans_id %d, handle %d", param->write.conn_id, param->write.trans_id, param->write.handle);
-        if (!param->write.is_prep){
-            ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
-            esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
-            if (gl_profile_tab[PROFILE_A_APP_ID].descr_handle == param->write.handle && param->write.len == 2){
-                uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
-                if (descr_value == 0x0001){
-                    if (a_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY){
-                        ESP_LOGI(GATTS_TAG, "notify enable");
-                        uint8_t notify_data[15];
-                        for (int i = 0; i < sizeof(notify_data); ++i)
-                        {
-                            notify_data[i] = i%0xff;
-                        }
-                        //the size of notify_data[] need less than MTU size
-                        esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_A_APP_ID].char_handle,
-                                                sizeof(notify_data), notify_data, false);
-                    }
-                }else if (descr_value == 0x0002){
-                    if (a_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
-                        ESP_LOGI(GATTS_TAG, "indicate enable");
-                        uint8_t indicate_data[15];
-                        for (int i = 0; i < sizeof(indicate_data); ++i)
-                        {
-                            indicate_data[i] = i%0xff;
-                        }
-                        //the size of indicate_data[] need less than MTU size
-                        esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_A_APP_ID].char_handle,
-                                                sizeof(indicate_data), indicate_data, true);
-                    }
-                }
-                else if (descr_value == 0x0000){
-                    ESP_LOGI(GATTS_TAG, "notify/indicate disable ");
-                }else{
-                    ESP_LOGE(GATTS_TAG, "unknown descr value");
-                    esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
-                }
-
-            }
-        }
-        example_write_event_env(gatts_if, &a_prepare_write_env, param);
+        gatts_profile_a_write_handle(gatts_if, param);
         break;
     }
     case ESP_GATTS_EXEC_WRITE_EVT:
@@ -391,6 +446,8 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
             gl_profile_tab[PROFILE_A_APP_ID].service_handle = param->create.service_handle;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.len = ESP_UUID_LEN_16;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.uuid.uuid16 = FLEX_SENSOR_CHAR_UUID;
+            gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.len = ESP_UUID_LEN_16;
+            gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.uuid.uuid16 = FLEX_SENSOR_DESCR_UUID;
             a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
             esp_err_t add_char_ret = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].char_uuid,
                                                             ESP_GATT_PERM_READ,
@@ -398,6 +455,12 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                                                             NULL, NULL);/* Adding a characteristic to a service triggers an ESP_GATTS_ADD_CHAR_EVT */
             if (add_char_ret){
                 ESP_LOGE(GATTS_TAG, "add char failed, error code =%x",add_char_ret);
+            }
+            esp_err_t add_descr_ret = esp_ble_gatts_add_char_descr(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].descr_uuid,
+                                                                    ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, NULL, NULL);
+                                                                    /* Once the descriptor is added, the ESP_GATTS_ADD_CHAR_DESCR_EVT event is triggered */
+            if (add_descr_ret){
+                ESP_LOGE(GATTS_TAG, "add char descr failed, error code =%x", add_descr_ret);
             }
         }
         if( param->create.service_handle == restart_handle)
@@ -427,6 +490,8 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
             gl_profile_tab[PROFILE_A_APP_ID].service_handle = param->create.service_handle;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.len = ESP_UUID_LEN_16;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.uuid.uuid16 = QUATERNION_CHAR_UUID;
+            gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.len = ESP_UUID_LEN_16;
+            gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.uuid.uuid16 = QUATERNION_DESCR_UUID;
             a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
             esp_err_t add_char_ret = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].char_uuid,
                                                             ESP_GATT_PERM_READ,
@@ -434,6 +499,11 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                                                             NULL, NULL);
             if (add_char_ret){
                 ESP_LOGE(GATTS_TAG, "add char failed, error code =%x",add_char_ret);
+            }
+            esp_err_t add_descr_ret = esp_ble_gatts_add_char_descr(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].descr_uuid,
+                                                                    ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, NULL, NULL);
+            if (add_descr_ret){
+                ESP_LOGE(GATTS_TAG, "add char descr failed, error code =%x", add_descr_ret);
             }
         }
         if( param->create.service_handle == fb_led_handle)
@@ -484,6 +554,30 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                 ESP_LOGE(GATTS_TAG, "add char descr failed, error code =%x", add_descr_ret);
             }
         }
+
+        #ifdef ENABLE_THEMU_BLE_LOGS
+        if( param->create.service_handle == log_handle)
+        {
+            gl_profile_tab[PROFILE_A_APP_ID].service_handle = param->create.service_handle;
+            gl_profile_tab[PROFILE_A_APP_ID].char_uuid.len = ESP_UUID_LEN_16;
+            gl_profile_tab[PROFILE_A_APP_ID].char_uuid.uuid.uuid16 = LOG_CHAR_UUID;
+            gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.len = ESP_UUID_LEN_16;
+            gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.uuid.uuid16 = LOG_DESCR_UUID;
+            a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
+            esp_err_t add_char_ret = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].char_uuid,
+                                                            ESP_GATT_PERM_READ,
+                                                            a_property,
+                                                            NULL, NULL);
+            if (add_char_ret){
+                ESP_LOGE(GATTS_TAG, "add char failed, error code =%x",add_char_ret);
+            }
+            esp_err_t add_descr_ret = esp_ble_gatts_add_char_descr(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].descr_uuid,
+                                                                    ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, NULL, NULL);
+            if (add_descr_ret){
+                ESP_LOGE(GATTS_TAG, "add char descr failed, error code =%x", add_descr_ret);
+            }
+        }
+        #endif
         
         esp_ble_gatts_start_service(gl_profile_tab[PROFILE_A_APP_ID].service_handle);/* Starting a service triggers an ESP_GATTS_START_EVT */  
         break;
@@ -523,10 +617,17 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         gl_profile_tab[PROFILE_A_APP_ID].conn_id = param->connect.conn_id;
         //start sent the update connection parameters to the peer device.
         esp_ble_gap_update_conn_params(&conn_params); /*this triggers a GAP event ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT*/
+
+        /*Saving app parameters to handle notifications*/
+        a_gatts_if = gatts_if;
+        a_conn_id = param->connect.conn_id;
+        disableAllNotifications();
+        
         break;
     }
     case ESP_GATTS_DISCONNECT_EVT:
         ESP_LOGI(GATTS_TAG, "ESP_GATTS_DISCONNECT_EVT, disconnect reason 0x%x", param->disconnect.reason);
+        disableAllNotifications();
         esp_ble_gap_start_advertising(&adv_params);
         break;
     case ESP_GATTS_CONF_EVT:
@@ -622,4 +723,132 @@ void InitBLE()
     }
 
     return;
+}
+
+//Verify for write permission and CCCD value. Return the CCCD value on success or 0 on fail.
+uint16_t getCCCD(esp_ble_gatts_cb_param_t *_param)
+{
+    if(_param->write.len == 2)
+        {
+        uint16_t descr_value = _param->write.value[1]<<8 | _param->write.value[0];
+        if (descr_value == 0x0001){
+            if (a_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY){
+                ESP_LOGI(GATTS_TAG, "Notify enable");
+                return NOTIFICATION_ENABLE;
+            }
+        }else if (descr_value == 0x0002){
+            if (a_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
+                ESP_LOGI(GATTS_TAG, "Indicate enable");
+                return INDICATIONS_ENABLE;
+            }
+        }
+        else if (descr_value == 0x0000){
+            ESP_LOGI(GATTS_TAG, "Notify & indicate disable ");
+            return NOTIFICATION_DISABLE;
+        }else{
+            ESP_LOGE(GATTS_TAG, "Unknown descriptor value.");
+        }
+    }
+    else
+    {
+        ESP_LOGE(GATTS_TAG, "Descriptor length out of range. Expected 16 bits.");
+    } 
+    return 0;
+}
+
+void disableAllNotifications(void)
+{
+    a_cccd.battery = NOTIFICATION_DISABLE;
+    a_cccd.fb_led = NOTIFICATION_DISABLE;
+    a_cccd.flex_sensor = NOTIFICATION_DISABLE;
+    a_cccd.quaternion = NOTIFICATION_DISABLE;
+    a_cccd.restart = NOTIFICATION_DISABLE;
+    #ifdef ENABLE_THEMU_BLE_LOGS
+    a_cccd.ble_log = NOTIFICATION_DISABLE;
+    #endif
+}
+
+
+/**Why MTU agreement is needed in order to set a notification:
+ * Thread: https://github.com/espressif/esp-idf/issues/3315
+ * For posterity, I reviewed the Bluetooth specification (v4.2 & v5.1), 
+ * and found the sections relevant to Notification (4.10), Indication (4.11) 
+ * and write long characteristic values (4.9.4). It does appear (as @chegewara states) 
+ * that notification & indication of new characteristic values is limited by the current MTU.
+ */
+void tBLE (void *pv)
+{
+    a_prepare_read_env.prepare_buf=NULL;
+    uint32_t notifycount = 0;
+    while (1)
+    {
+        notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        if(notifycount == 1)
+        {   
+            discardActualPayload();
+            if(a_cccd.flex_sensor)
+            {
+                #ifdef ENABLE_THEMU_ADC
+                prepReadFlexSensors();
+                #else
+                prepReadDummyBytes(5);
+                #endif
+                esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, flex_sensor_charvalue_handle,
+                        a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
+                vPortFree(a_prepare_read_env.prepare_buf);
+                a_prepare_read_env.prepare_buf = NULL;
+            }
+            if(a_cccd.restart)
+            {
+
+            }
+            if(a_cccd.quaternion)
+            {
+                #ifdef ENABLE_THEMU_IMU
+                prepReadQuaternion(quaternion);
+                #else
+                prepReadDummyBytes(16);
+                #endif
+                esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, quaternion_charvalue_handle,
+                        a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
+                vPortFree(a_prepare_read_env.prepare_buf);
+                a_prepare_read_env.prepare_buf = NULL;
+            }
+            if(a_cccd.fb_led)
+            {
+
+            }
+            if(a_cccd.battery)
+            {
+                #ifdef ENABLE_THEMU_ADC
+                prepReadBatteryLevel();
+                #else 
+                prepReadDummyBytes(1);
+                #endif
+                esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, battery_charvalue_handle,
+                        a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
+                vPortFree(a_prepare_read_env.prepare_buf);
+                a_prepare_read_env.prepare_buf = NULL;
+            }
+        }
+        #ifdef ENABLE_THEMU_BLE_LOGS
+        else if(notifycount == 2)
+        {
+            if(a_cccd.ble_log)
+            {
+                prepReadBLELog(bleLogMsg);
+                esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, log_charvalue_handle,
+                        a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
+                vPortFree(a_prepare_read_env.prepare_buf);
+                a_prepare_read_env.prepare_buf = NULL;
+            } 
+        }
+        #endif
+        else
+        {
+            printf("TIMEOUT waiting notification on tBLE\n");
+        }
+
+    }
+    
 }

@@ -2,6 +2,7 @@
 #define MPU6050_H_
 
 #include <stdint.h>
+#include "QuaternionLib.h"
 
 #define MPU6050_ADDRESS 0x68 // I2C address of MPU6050
 
@@ -28,13 +29,12 @@
 #define MPU6050_GYRO_CONFIG     0x1B
 #define MPU6050_ACCEL_CONFIG    0x1C
 
-#define CAL_ITERATIONS  64
 /*
 *   AFS_SEL     Full Scale Range        LSB Sensitivity
-*   0               +/- 2g                  16384 LSB/g
-*   1               +/- 4g                  8192 LSB/g
-*   2               +/- 8g                  4096 LSB/g
-*   3               +/- 16g                 2048 LSB/g
+*   0               +/- 2 g                 16384 LSB/g
+*   1               +/- 4 g                 8192 LSB/g
+*   2               +/- 8 g                 4096 LSB/g
+*   3               +/- 16 g                2048 LSB/g
 */
 #define AFS_SEL         0x0
 
@@ -53,31 +53,48 @@
 #define DEG_TO_RAD      (3.14159265f/180)
 #define RAD_TO_DEG      (1/DEG_TO_RAD)
 
+#define MPU6050_8BITS_REGS      14
+#define MPU6050_16BITS_REGS     (MPU6050_8BITS_REGS/2)
+#define CAL_ITERATIONS          64
 
-/*Quaternion value formatted as:
-* Sign (1 byte) + Value (8 bytes - double) + Nul Terminator (1 byte)
-*
-* The terminator in this case is going to be a '\n'(0x0A) token splitter.  
-* So the final value size for the quaternion is going to be 4*10 bytes.
-*/
-#define QUATERNION_SIZE_BYTES   40
-
-typedef struct quaternion
+enum MPU6050_8BitsRegsIdx
 {
-	uint8_t value[QUATERNION_SIZE_BYTES];
-}quaternion_t;
+    accelX_H = 0,
+    accelX_L,
+    accelY_H,
+    accelY_L,
+    accelZ_H,
+    accelZ_L,
+    temp_H,
+    temp_L,
+    gyroX_H,
+    gyroX_L,
+    gyroY_H,
+    gyroY_L,
+    gyroZ_H,
+    gyroZ_L 
+};
 
-void vQuaternionSend(void);
-void vQuaternionCreate(void);
-void vQuaternionDelete(void);
-void vQuaternionSave(void);
+enum MPU6050_16BitsRegsIdx
+{
+    accelX = 0,
+    accelY,
+    accelZ,
+    temp,
+    gyroX,
+    gyroY,
+    gyroZ
+};
+
+extern quaternion_t *quaternion;
+
 void InitMPU6050 (void);
-void offsetCalibration (double *accel_x_offset, double *accel_y_offset, double *accel_z_offset, 
-    double *temp_offset, double *gyro_x_offset,double *gyro_y_offset,double *gyro_z_offset);
-void printMPU6050_registers(double faccel_x, double faccel_y, double faccel_z,
-    double ftemp, double fgyro_x, double fgyro_y, double fgyro_z);
-void vQuaternionPrint(void);
-
+void readMPU6050Regs(uint8_t *_mpuRegs);
+void getMPUValuesFromRegs(double *_values, uint8_t *_mpuRegs);
+void processMPUValues(double *_processed, double *_values, double *_offsets);
+void takeOutGForceFromAccel(double *_MPU6050Values);
+void getMPU6050Offset(double *_offsetValues);
+void printValues(double *_values);
 void tMPU6050 (void *pv);
 
 #endif /* MPU6050_H_ */
