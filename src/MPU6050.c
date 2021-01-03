@@ -1,14 +1,9 @@
 #include "MPU6050.h"
 #include "myI2C.h"
-#include "MadgwickAHRS.h"
-#include "myBLE.h"
 #include "myTasks.h"
-#include "QuaternionLib.h"
-#include <string.h>
 #include "configs.h"
 
-
-quaternion_t *quaternion;
+volatile double processedValues[MPU6050_16BITS_REGS];
 
 void InitMPU6050 (void)
 {
@@ -101,7 +96,7 @@ void getMPUValuesFromRegs(double *_values, uint8_t *_mpuRegs)
     _values[gyroZ] = ((_mpuRegs[gyroZ_H] << 8) | _mpuRegs[gyroZ_L]);
 }
 
-void processMPUValues(double *_processed, double *_values, double *_offsets)
+void processMPUValues(volatile double *_processed, double *_values, double *_offsets)
 {
     // Read gyro values and convert to Radians per second
     _processed[gyroX]  =  ((short)_values[gyroX] - (short)_offsets[gyroX]) * DEG_TO_RAD * GYRO_SCALE;
@@ -155,9 +150,8 @@ void tMPU6050 (void *pv)
 {
     uint32_t notifycount = 0;
   	uint8_t mpuRegs[MPU6050_8BITS_REGS];
-    double mpuValues[MPU6050_16BITS_REGS], processedValues[MPU6050_16BITS_REGS];
+    double mpuValues[MPU6050_16BITS_REGS];
     double offsetValues[MPU6050_16BITS_REGS];
-    quaternion = createQuaternion();
 
     getMPU6050Offset(offsetValues);
 
@@ -168,39 +162,20 @@ void tMPU6050 (void *pv)
             readMPU6050Regs(mpuRegs);
             getMPUValuesFromRegs(mpuValues, mpuRegs);
             processMPUValues(processedValues, mpuValues, offsetValues);
-            MadgwickAHRSupdateIMU(processedValues[gyroX],processedValues[gyroY],processedValues[gyroZ],
-                                processedValues[accelX],processedValues[accelY],processedValues[accelZ]);
-            saveQuaternion(quaternion,q0,q1,q2,q3);
             
+            xTaskNotify(thGestures, 1, eSetValueWithOverwrite);
             
-            #if defined ENABLE_THEMU_IMU_LOGS || defined ENABLE_LIVE_PLOT
-            //printf("Processed Values:\n");
-            printValues(processedValues);
-            #endif
             #ifdef ENABLE_THEMU_IMU_LOGS
             printf("MPU Values:\n");
             printValues(mpuValues);
             printf("Offset Values:\n");
             printValues(offsetValues);
-            printQuaternion(quaternion);
-            printf("Madgwick Quaternion Reading:\nQ0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",q0,q1,q2,q3);
+            printf("Processed Values:\n");
+            printValues(processedValues);
             #endif
-            
-            #ifdef ENABLE_VECTOR_ROTATION
-            quaternionForm_t myQuat;
-            myQuat.hamiltonForm.q0 = q0;
-            myQuat.hamiltonForm.q1 = q1;
-            myQuat.hamiltonForm.q2 = q2;
-            myQuat.hamiltonForm.q3 = q3;
-            //myQuat.polarForm = hamilton2polar(myQuat.hamiltonForm);
-            vector_t p, prot;
-            p.i=1;
-            p.j=0;
-            p.k=0;
-            prot = rotateVector(p,myQuat.hamiltonForm);
-            printf("Vector Rotation Info:\npi=%f\tpj=%f\tpk=%f\tQ0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",prot.i,prot.j,prot.k,q0,q1,q2,q3);
+            #ifdef ENABLE_LIVE_PLOT
+            printValues(processedValues);
             #endif
-
         }
         else
         {

@@ -14,14 +14,20 @@
 #define ENABLE_THEMU_IMU
 #define ENABLE_THEMU_ADC
 
-//Logs
-#define ENABLE_THEMU_LOGS
-#ifdef ENABLE_THEMU_LOGS
-    //#define ENABLE_THEMU_BLE_LOGS
-    //#define ENABLE_THEMU_ADC_LOGS
-    //#define ENABLE_THEMU_IMU_LOGS
+#if defined ENABLE_THEMU_IMU && defined ENABLE_THEMU_ADC
+    #define ENABLE_THEMU_GESTURES
 #endif
 
 //Test
 //#define ENABLE_VECTOR_ROTATION
 //#define ENABLE_LIVE_PLOT
+
+//Logs
+#define ENABLE_THEMU_LOGS
+
+#if defined (ENABLE_THEMU_LOGS) && !defined (ENABLE_LIVE_PLOT)
+    //#define ENABLE_THEMU_BLE_LOGS
+    //#define ENABLE_THEMU_ADC_LOGS
+    //#define ENABLE_THEMU_IMU_LOGS
+#endif
+

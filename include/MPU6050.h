@@ -2,7 +2,6 @@
 #define MPU6050_H_
 
 #include <stdint.h>
-#include "QuaternionLib.h"
 
 #define MPU6050_ADDRESS 0x68 // I2C address of MPU6050
 
@@ -57,7 +56,7 @@
 #define MPU6050_16BITS_REGS     (MPU6050_8BITS_REGS/2)
 #define CAL_ITERATIONS          64
 
-enum MPU6050_8BitsRegsIdx
+typedef enum
 {
     accelX_H = 0,
     accelX_L,
@@ -73,9 +72,9 @@ enum MPU6050_8BitsRegsIdx
     gyroY_L,
     gyroZ_H,
     gyroZ_L 
-};
+}MPU6050_8BitsRegsIdx_t;
 
-enum MPU6050_16BitsRegsIdx
+typedef enum 
 {
     accelX = 0,
     accelY,
@@ -84,14 +83,14 @@ enum MPU6050_16BitsRegsIdx
     gyroX,
     gyroY,
     gyroZ
-};
+}MPU6050_16BitsRegsIdx_t;
 
-extern quaternion_t *quaternion;
+extern volatile double processedValues[MPU6050_16BITS_REGS];
 
 void InitMPU6050 (void);
 void readMPU6050Regs(uint8_t *_mpuRegs);
 void getMPUValuesFromRegs(double *_values, uint8_t *_mpuRegs);
-void processMPUValues(double *_processed, double *_values, double *_offsets);
+void processMPUValues(volatile double *_processed, double *_values, double *_offsets);
 void takeOutGForceFromAccel(double *_MPU6050Values);
 void getMPU6050Offset(double *_offsetValues);
 void printValues(double *_values);

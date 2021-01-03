@@ -313,7 +313,8 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
         else if(param->read.handle == quaternion_charvalue_handle)
         {
             #ifdef ENABLE_THEMU_IMU
-            prepReadQuaternion(quaternion);
+            //prepReadQuaternion(quaternion);
+            prepReadDummyBytes(16);
             #else
             prepReadDummyBytes(16);
             #endif
@@ -628,6 +629,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
     case ESP_GATTS_DISCONNECT_EVT:
         ESP_LOGI(GATTS_TAG, "ESP_GATTS_DISCONNECT_EVT, disconnect reason 0x%x", param->disconnect.reason);
         disableAllNotifications();
+        timer_pause(TIMER_GROUP_0, TIMER_0);
         esp_ble_gap_start_advertising(&adv_params);
         break;
     case ESP_GATTS_CONF_EVT:
@@ -805,7 +807,8 @@ void tBLE (void *pv)
             if(a_cccd.quaternion)
             {
                 #ifdef ENABLE_THEMU_IMU
-                prepReadQuaternion(quaternion);
+                prepReadDummyBytes(16);
+                //prepReadQuaternion(quaternion);
                 #else
                 prepReadDummyBytes(16);
                 #endif

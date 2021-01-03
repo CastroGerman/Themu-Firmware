@@ -3,9 +3,10 @@
 #include "myTimers.h"
 #include "MPU6050.h"
 #include "myBLE.h"
+#include "Gesture.h"
 #include "configs.h"
 
-xTaskHandle thGPIO = NULL, thG0Timer0 = NULL, thG0Timer1 = NULL, thMPU6050 = NULL, thBLE = NULL, thIMUAnalyst = NULL;
+xTaskHandle thGPIO = NULL, thG0Timer0 = NULL, thG0Timer1 = NULL, thMPU6050 = NULL, thBLE = NULL, thGestures = NULL;
 
 void InitTasks(void)
 {
@@ -15,11 +16,14 @@ void InitTasks(void)
     
     #ifdef ENABLE_THEMU_IMU
     xTaskCreatePinnedToCore(tMPU6050, (const char *) "tMPU6050",        configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 1UL), &thMPU6050, 1);
-    //xTaskCreatePinnedToCore(tIMUAnalyst, (const char *) "tIMUAnalyst",  configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 2UL), &thIMUAnalyst, 1);
     #endif
     
     #ifdef ENABLE_THEMU_BLE
     xTaskCreatePinnedToCore(tBLE, (const char *) "tBLE",                configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 1UL), &thBLE, 0);
+    #endif
+
+    #ifdef ENABLE_THEMU_GESTURES
+    xTaskCreatePinnedToCore(tGestures, (const char *) "tGestures",  configMINIMAL_STACK_SIZE*10, NULL, (tskIDLE_PRIORITY + 2UL), &thGestures, 1);
     #endif
 }
 

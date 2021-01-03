@@ -28,7 +28,7 @@ void prepReadADC1Channel(adc1_channel_t _channel)
 {
     if(a_prepare_read_env.prepare_buf == NULL)
     {
-        uint8_t adcRead = (uint8_t) readPorcentualADC1Channel(_channel);
+        uint8_t adcRead = (uint8_t) getFingerFlexChannel(_channel);
         a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(adcRead));
         a_prepare_read_env.prepare_len = sizeof(adcRead);
         memcpy(a_prepare_read_env.prepare_buf, &adcRead, a_prepare_read_env.prepare_len); 
@@ -39,12 +39,12 @@ void prepReadFlexSensors(void)
 {
     if(a_prepare_read_env.prepare_buf == NULL)
     {
-        uint8_t flexSensor[5];
-        flexSensor[0] = (uint8_t)readPorcentualADC1Channel(FLEX1_CHANNEL);
-        flexSensor[1] = (uint8_t)readPorcentualADC1Channel(FLEX2_CHANNEL);
-        flexSensor[2] = (uint8_t)readPorcentualADC1Channel(FLEX3_CHANNEL);
-        flexSensor[3] = (uint8_t)readPorcentualADC1Channel(FLEX4_CHANNEL);
-        flexSensor[4] = (uint8_t)readPorcentualADC1Channel(FLEX5_CHANNEL);
+        uint8_t flexSensor[FINGERS];
+        flexSensor[THUMB] = (uint8_t)getFingerFlexChannel(THUMB_FLEX_CHANNEL);
+        flexSensor[INDEX] = (uint8_t)getFingerFlexChannel(INDEX_FLEX_CHANNEL);
+        flexSensor[MIDDLE] = (uint8_t)getFingerFlexChannel(MIDDLE_FLEX_CHANNEL);
+        flexSensor[RING] = (uint8_t)getFingerFlexChannel(RING_FLEX_CHANNEL);
+        flexSensor[LITTLE] = (uint8_t)getFingerFlexChannel(LITTLE_FLEX_CHANNEL);
         a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(flexSensor));
         a_prepare_read_env.prepare_len = sizeof(flexSensor);
         memcpy(a_prepare_read_env.prepare_buf, flexSensor, a_prepare_read_env.prepare_len); 
@@ -91,7 +91,7 @@ void prepReadBatteryLevel(void)
     if(a_prepare_read_env.prepare_buf == NULL)
     {
         uint8_t batteryLevel;
-        batteryLevel = (uint8_t)readPorcentualADC1Channel(BATT_CHANNEL);
+        batteryLevel = (uint8_t)getFingerFlexChannel(BATT_CHANNEL);
         a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(batteryLevel));
         a_prepare_read_env.prepare_len = sizeof(batteryLevel);
         memcpy(a_prepare_read_env.prepare_buf, &batteryLevel, a_prepare_read_env.prepare_len); 

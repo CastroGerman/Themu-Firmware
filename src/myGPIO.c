@@ -1,13 +1,3 @@
-/**Brief:
- * GPIO 16 defined as input.
- * GPIO 17 defined as output.
- * GPIO 36 defines as channel 0 of ADC1.
- * GPIO 39 defines as channel 3 of ADC1.
- * GPIO 32 defines as channel 4 of ADC1.
- * GPIO 33 defines as channel 5 of ADC1.
- * GPIO 34 defined as channel 6 of ADC1.
- * GPIO 35 defines as channel 7 of ADC1.
- */
 #include "myGPIO.h"
 #include "myBLE.h"
 #include "myTasks.h"
@@ -60,11 +50,11 @@ void InitADC1 (void)
      * For maximum accuracy, use the ADC calibration APIs and measure voltages within these recommended ranges.
      */
     adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(FLEX1_CHANNEL, FLEX1_CHANNEL_ATT);
-    adc1_config_channel_atten(FLEX2_CHANNEL, FLEX2_CHANNEL_ATT);
-    adc1_config_channel_atten(FLEX3_CHANNEL, FLEX3_CHANNEL_ATT);
-    adc1_config_channel_atten(FLEX4_CHANNEL, FLEX4_CHANNEL_ATT);
-    adc1_config_channel_atten(FLEX5_CHANNEL, FLEX5_CHANNEL_ATT);
+    adc1_config_channel_atten(THUMB_FLEX_CHANNEL, THUMB_FLEX_CHANNEL_ATT);
+    adc1_config_channel_atten(INDEX_FLEX_CHANNEL, INDEX_FLEX_CHANNEL_ATT);
+    adc1_config_channel_atten(MIDDLE_FLEX_CHANNEL, MIDDLE_FLEX_CHANNEL_ATT);
+    adc1_config_channel_atten(RING_FLEX_CHANNEL, RING_FLEX_CHANNEL_ATT);
+    adc1_config_channel_atten(LITTLE_FLEX_CHANNEL, LITTLE_FLEX_CHANNEL_ATT);
     adc1_config_channel_atten(BATT_CHANNEL, BATT_CHANNEL_ATT);
     
     //Characterize ADC
@@ -129,7 +119,7 @@ void InitGPIO (void)
     gpio_isr_handler_add(BUTTON_PIN, glove_button_isr_handler, (void*) NULL);
 }
 
-int readPorcentualADC1Channel(adc1_channel_t _channel)
+int getFingerFlexChannel(adc1_channel_t _channel)
 {
     int adcRead = 0;
     //Multisampling
@@ -186,7 +176,7 @@ void tGPIO (void *pv)
         }
         else if (notifycount == 2)
         {
-            readPorcentualADC1Channel(ADC1_CHANNEL_3);
+            getFingerFlexChannel(ADC1_CHANNEL_3);
         }
         else
         {
