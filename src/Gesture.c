@@ -3,7 +3,63 @@
 #include "MadgwickAHRS.h"
 #include "configs.h"
 
-//gesture_t *gesture;
+gesture_t *gesture;
+uint8_t gesturesPayload;
+
+int isPointingUp(vector_t _vector)
+{
+    if(_vector.k > GST_POINTING_UP_EVT_TGR)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+int isPointingDown(vector_t _vector)
+{
+    if(_vector.k < GST_POINTING_DOWN_EVT_TGR)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+int isPointingFront(vector_t _vector)
+{
+    if(_vector.i > GST_POINTING_FRONT_EVT_TGR)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+int isPointingBack(vector_t _vector)
+{
+    if(_vector.i < GST_POINTING_BACK_EVT_TGR)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+int isPointingLeft(vector_t _vector)
+{
+    if(_vector.j > GST_POINTING_LEFT_EVT_TGR)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+int isPointingRight(vector_t _vector)
+{
+    if(_vector.j < GST_POINTING_RIGHT_EVT_TGR)
+    {
+        return 1;
+    }
+    return 0;
+}
+
 
 gesture_t *createGesture(void)
 {
@@ -30,10 +86,26 @@ void updateGesture(gesture_t *_gesture, double *_imu, float _q0, float _q1, floa
     _gesture->quaternion.hamiltonForm.q3 = _q3;          
 }
 
+uint8_t analyzeGestures(gesture_t *_gesture)
+{
+    uint8_t gesturesPayload = 0;
+    vector_t vector = {VECTOR_REF};
+    vector = rotateVector(vector, _gesture->quaternion.hamiltonForm);
+    printf("%f",vector.i);
+
+    return gesturesPayload = 
+        ((isPointingUp(vector) << GST_POINTING_UP_PLOAD_BIT) |
+        (isPointingDown(vector) << GST_POINTING_DOWN_PLOAD_BIT) |
+        (isPointingFront(vector) << GST_POINTING_FRONT_PLOAD_BIT) |
+        (isPointingBack(vector) << GST_POINTING_BACK_PLOAD_BIT) |
+        (isPointingLeft(vector) << GST_POINTING_LEFT_PLOAD_BIT) |
+        (isPointingRight(vector) << GST_POINTING_RIGHT_PLOAD_BIT));
+}
+
 void tGestures (void *pv)
 {
     uint32_t notifycount = 0;
-    gesture_t *gesture = createGesture();
+    gesture = createGesture();
     while (1)
     {
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -41,24 +113,8 @@ void tGestures (void *pv)
         {
             MadgwickAHRSupdateIMU(processedValues[gyroX],processedValues[gyroY],processedValues[gyroZ],
                                 processedValues[accelX],processedValues[accelY],processedValues[accelZ]);
-            updateGesture(gesture, (double *)processedValues, q0, q1, q2, q3);     
-    
-            printf("%f\t%f\n",gesture->imu[accelX],processedValues[accelX]);
-    
-            #ifdef ENABLE_VECTOR_ROTATION
-            quaternionForm_t myQuat;
-            myQuat.hamiltonForm.q0 = q0;
-            myQuat.hamiltonForm.q1 = q1;
-            myQuat.hamiltonForm.q2 = q2;
-            myQuat.hamiltonForm.q3 = q3;
-            //myQuat.polarForm = hamilton2polar(myQuat.hamiltonForm);
-            vector_t p, prot;
-            p.i=1;
-            p.j=0;
-            p.k=0;
-            prot = rotateVector(p,myQuat.hamiltonForm);
-            printf("Vector Rotation Info:\npi=%f\tpj=%f\tpk=%f\tQ0=%f\tQ1=%f\tQ2=%f\tQ3=%f\n",prot.i,prot.j,prot.k,q0,q1,q2,q3);
-            #endif
+            updateGesture(gesture, (double *)processedValues, q0, q1, q2, q3);
+            //gesturesPayload = analyzeGestures(gesture);    
         }
         else
         {

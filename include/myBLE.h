@@ -21,9 +21,9 @@
 #define RESTART_SERVICE_UUID        0x0200
 #define RESTART_CHAR_UUID           0x0210
 #define RESTART_DESCR_UUID          0x0211
-#define QUATERNION_SERVICE_UUID     0x0300
-#define QUATERNION_CHAR_UUID        0x0310
-#define QUATERNION_DESCR_UUID       0x2902
+#define GESTURES_SERVICE_UUID     0x0300
+#define GESTURES_CHAR_UUID        0x0310
+#define GESTURES_DESCR_UUID       0x2902
 #define FB_LED_SERVICE_UUID         0x0400
 #define FB_LED_CHAR_UUID            0x0410
 #define FB_LED_DESCR_UUID           0x0411
@@ -41,7 +41,7 @@ Characteristic descriptor handle*/
 * So if you like to add characteristic you should init service with 6 or more handle number*/
 #define FLEX_SENSOR_NUM_HANDLE      4
 #define RESTART_NUM_HANDLE          4
-#define QUATERNION_NUM_HANDLE       4
+#define GESTURES_NUM_HANDLE       4
 #define FB_LED_NUM_HANDLE           4
 #define BATTERY_NUM_HANDLE          5
 #define BASE_SERVICE_HANDLE         40
@@ -79,10 +79,10 @@ enum Profile_handlers {
     restart_char_handle,
     restart_charvalue_handle,
     restart_descr_handle,
-    quaternion_handle,
-    quaternion_char_handle,
-    quaternion_charvalue_handle,
-    quaternion_descr_handle,
+    gestures_handle,
+    gestures_char_handle,
+    gestures_charvalue_handle,
+    gestures_descr_handle,
     fb_led_handle,
     fb_led_char_handle,
     fb_led_charvalue_handle,
@@ -121,7 +121,7 @@ typedef struct {
 } prepare_type_env_t;
 
 typedef struct{
-    uint16_t flex_sensor, restart, quaternion, fb_led, battery;
+    uint16_t flex_sensor, restart, gestures, fb_led, battery;
     #ifdef ENABLE_THEMU_BLE_LOGS
     uint16_t ble_log;
     #endif

@@ -5,6 +5,7 @@
 #include <string.h> //memcpy & memset
 #include "configs.h"
 #include "myTimers.h"
+#include "Gesture.h"
 
 /*Declare the static functions & variables*/
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
@@ -224,23 +225,15 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
     {
         
     }
-    else if(param->write.handle == quaternion_descr_handle)
+    else if(param->write.handle == gestures_descr_handle)
     {
-        a_cccd.quaternion = getCCCD(param);
-        if(a_cccd.quaternion)
-        {
-            timer_start(TIMER_GROUP_0, TIMER_0);
-        }
-        else
-        {
-            timer_pause(TIMER_GROUP_0, TIMER_0);
-        }
+        a_cccd.gestures = getCCCD(param);
     }
     else if(param->write.handle == fb_led_charvalue_handle)
     {
-        gpio_set_level(FB_LED_RED_PIN,(param->write.value[0])&BIT(0));
-        gpio_set_level(FB_LED_GREEN_PIN,(param->write.value[0])&BIT(1));
-        gpio_set_level(FB_LED_BLUE_PIN,(param->write.value[0])&BIT(2));
+        gpio_set_level(FB_LED_RED_PIN,(param->write.value[0])&BIT(FB_LED_RED_PLOAD_BIT));
+        gpio_set_level(FB_LED_GREEN_PIN,(param->write.value[0])&BIT(FB_LED_GREEN_PLOAD_BIT));
+        gpio_set_level(FB_LED_BLUE_PIN,(param->write.value[0])&BIT(FB_LED_BLUE_PLOAD_BIT));
     }
     else if(param->write.handle == fb_led_descr_handle)
     {
@@ -310,18 +303,17 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
         {
             prepReadDummyBytes(2);
         }
-        else if(param->read.handle == quaternion_charvalue_handle)
+        else if(param->read.handle == gestures_charvalue_handle)
         {
-            #ifdef ENABLE_THEMU_IMU
-            //prepReadQuaternion(quaternion);
-            prepReadDummyBytes(16);
+            #ifdef ENABLE_THEMU_GESTURES
+            prepReadGestures(gesture);
             #else
-            prepReadDummyBytes(16);
+            prepReadDummyBytes(1);
             #endif
         }
-        else if(param->read.handle == quaternion_descr_handle)
+        else if(param->read.handle == gestures_descr_handle)
         {
-            prepReadCCCD(a_cccd.quaternion);
+            prepReadCCCD(a_cccd.gestures);
         }
         else if(param->read.handle == fb_led_charvalue_handle)
         {
@@ -404,8 +396,8 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         gl_profile_tab[PROFILE_A_APP_ID].service_id.id.uuid.uuid.uuid16 = RESTART_SERVICE_UUID;
         esp_ble_gatts_create_service(gatts_if, &gl_profile_tab[PROFILE_A_APP_ID].service_id, RESTART_NUM_HANDLE);
         gl_profile_tab[PROFILE_A_APP_ID].service_id.is_primary = true;
-        gl_profile_tab[PROFILE_A_APP_ID].service_id.id.uuid.uuid.uuid16 = QUATERNION_SERVICE_UUID;
-        esp_ble_gatts_create_service(gatts_if, &gl_profile_tab[PROFILE_A_APP_ID].service_id, QUATERNION_NUM_HANDLE);
+        gl_profile_tab[PROFILE_A_APP_ID].service_id.id.uuid.uuid.uuid16 = GESTURES_SERVICE_UUID;
+        esp_ble_gatts_create_service(gatts_if, &gl_profile_tab[PROFILE_A_APP_ID].service_id, GESTURES_NUM_HANDLE);
         gl_profile_tab[PROFILE_A_APP_ID].service_id.is_primary = true;
         gl_profile_tab[PROFILE_A_APP_ID].service_id.id.uuid.uuid.uuid16 = FB_LED_SERVICE_UUID;
         esp_ble_gatts_create_service(gatts_if, &gl_profile_tab[PROFILE_A_APP_ID].service_id, FB_LED_NUM_HANDLE);
@@ -486,13 +478,13 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                 ESP_LOGE(GATTS_TAG, "add char descr failed, error code =%x", add_descr_ret);
             }
         }
-        if( param->create.service_handle == quaternion_handle)
+        if( param->create.service_handle == gestures_handle)
         {
             gl_profile_tab[PROFILE_A_APP_ID].service_handle = param->create.service_handle;
             gl_profile_tab[PROFILE_A_APP_ID].char_uuid.len = ESP_UUID_LEN_16;
-            gl_profile_tab[PROFILE_A_APP_ID].char_uuid.uuid.uuid16 = QUATERNION_CHAR_UUID;
+            gl_profile_tab[PROFILE_A_APP_ID].char_uuid.uuid.uuid16 = GESTURES_CHAR_UUID;
             gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.len = ESP_UUID_LEN_16;
-            gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.uuid.uuid16 = QUATERNION_DESCR_UUID;
+            gl_profile_tab[PROFILE_A_APP_ID].descr_uuid.uuid.uuid16 = GESTURES_DESCR_UUID;
             a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
             esp_err_t add_char_ret = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_A_APP_ID].service_handle, &gl_profile_tab[PROFILE_A_APP_ID].char_uuid,
                                                             ESP_GATT_PERM_READ,
@@ -623,7 +615,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         a_gatts_if = gatts_if;
         a_conn_id = param->connect.conn_id;
         disableAllNotifications();
-        
+        timer_start(TIMER_GROUP_0, TIMER_0);
         break;
     }
     case ESP_GATTS_DISCONNECT_EVT:
@@ -763,7 +755,7 @@ void disableAllNotifications(void)
     a_cccd.battery = NOTIFICATION_DISABLE;
     a_cccd.fb_led = NOTIFICATION_DISABLE;
     a_cccd.flex_sensor = NOTIFICATION_DISABLE;
-    a_cccd.quaternion = NOTIFICATION_DISABLE;
+    a_cccd.gestures = NOTIFICATION_DISABLE;
     a_cccd.restart = NOTIFICATION_DISABLE;
     #ifdef ENABLE_THEMU_BLE_LOGS
     a_cccd.ble_log = NOTIFICATION_DISABLE;
@@ -804,15 +796,14 @@ void tBLE (void *pv)
             {
 
             }
-            if(a_cccd.quaternion)
+            if(a_cccd.gestures)
             {
-                #ifdef ENABLE_THEMU_IMU
-                prepReadDummyBytes(16);
-                //prepReadQuaternion(quaternion);
+                #ifdef ENABLE_THEMU_GESTURES
+                prepReadGestures(gesture);
                 #else
-                prepReadDummyBytes(16);
+                prepReadDummyBytes(1);
                 #endif
-                esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, quaternion_charvalue_handle,
+                esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, gestures_charvalue_handle,
                         a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
                 vPortFree(a_prepare_read_env.prepare_buf);
                 a_prepare_read_env.prepare_buf = NULL;
