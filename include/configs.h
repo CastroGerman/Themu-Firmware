@@ -9,25 +9,31 @@
  * to disable all logs.
  */
 
-//Core
-#define ENABLE_THEMU_BLE
-#define ENABLE_THEMU_IMU
-#define ENABLE_THEMU_ADC
+
+#define ENABLE_THEMU_CORE 
+//#define ENABLE_THEMU_LOGS
+#define ENABLE_THEMU_TEST_APP
+//#define ENABLE_LIVE_PLOT
+
+
+#ifdef ENABLE_THEMU_CORE
+    #define ENABLE_THEMU_BLE
+    #define ENABLE_THEMU_IMU
+    #define ENABLE_THEMU_ADC
+#endif
+
+#ifdef ENABLE_THEMU_TEST_APP
+    #undef ENABLE_THEMU_IMU
+#endif
 
 #if defined ENABLE_THEMU_IMU && defined ENABLE_THEMU_ADC
     #define ENABLE_THEMU_GESTURES
 #endif
-
-//Test
-//#define ENABLE_VECTOR_ROTATION
-//#define ENABLE_LIVE_PLOT
-
-//Logs
-#define ENABLE_THEMU_LOGS
-
 #if defined (ENABLE_THEMU_LOGS) && !defined (ENABLE_LIVE_PLOT)
-    //#define ENABLE_THEMU_BLE_LOGS
-    //#define ENABLE_THEMU_ADC_LOGS
-    //#define ENABLE_THEMU_IMU_LOGS
+    #define ENABLE_THEMU_BLE_LOGS
+    #define ENABLE_THEMU_ADC_LOGS
+    #define ENABLE_THEMU_IMU_LOGS
 #endif
+
+
 

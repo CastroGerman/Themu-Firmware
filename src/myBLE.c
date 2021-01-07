@@ -307,6 +307,14 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
         {
             #ifdef ENABLE_THEMU_GESTURES
             prepReadGestures(gesture);
+            #elif defined(ENABLE_THEMU_TEST_APP)
+                if(a_prepare_read_env.prepare_buf == NULL)
+                    {
+                        uint8_t dummyRsp[1] = {1};
+                        a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummyRsp));
+                        a_prepare_read_env.prepare_len = sizeof(dummyRsp);
+                        memcpy(a_prepare_read_env.prepare_buf, &dummyRsp, a_prepare_read_env.prepare_len);
+                    }
             #else
             prepReadDummyBytes(1);
             #endif
@@ -800,6 +808,14 @@ void tBLE (void *pv)
             {
                 #ifdef ENABLE_THEMU_GESTURES
                 prepReadGestures(gesture);
+                #elif defined(ENABLE_THEMU_TEST_APP)
+                if(a_prepare_read_env.prepare_buf == NULL)
+                    {
+                        uint8_t dummyRsp[1] = {1};
+                        a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummyRsp));
+                        a_prepare_read_env.prepare_len = sizeof(dummyRsp);
+                        memcpy(a_prepare_read_env.prepare_buf, &dummyRsp, a_prepare_read_env.prepare_len);
+                    }
                 #else
                 prepReadDummyBytes(1);
                 #endif
