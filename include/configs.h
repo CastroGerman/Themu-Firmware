@@ -12,7 +12,7 @@
 
 #define ENABLE_THEMU_CORE 
 //#define ENABLE_THEMU_LOGS
-#define ENABLE_THEMU_TEST_APP
+//#define ENABLE_THEMU_TEST_APP
 //#define ENABLE_LIVE_PLOT
 
 
