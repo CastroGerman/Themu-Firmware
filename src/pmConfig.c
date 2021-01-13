@@ -24,6 +24,10 @@ esp_err_t switchCPUFreq(int _mhz)
             printf("TIMEOUT waiting for CPU frequency to be switched.\n");
             return ESP_ERR_TIMEOUT;
         }
+        /**
+         * Frequency switching is not possible while any power management lock 
+         * is being held. This is why there is a vTaskDelay here.
+         */
         vTaskDelay(SWITCH_FREQ_WAITING_TIME_MS);
     }
     printf("Frequency is set to %d MHz\n", _mhz);

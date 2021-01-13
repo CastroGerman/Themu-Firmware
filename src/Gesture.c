@@ -2,6 +2,7 @@
 #include "myTasks.h"
 #include "MadgwickAHRS.h"
 #include "configs.h"
+#include "myGPIO.h"
 
 gesture_t *gesture;
 uint8_t gesturesPayload;
@@ -60,6 +61,24 @@ int isPointingRight(vector_t _vector)
     return 0;
 }
 
+int isPunching(gesture_t *_gesture)
+{
+    if(_gesture->imu[accelX]>GST_FIST_BUMP_EVT_TGR)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+int isSlidingRight(gesture_t *_gesture)
+{
+    if(_gesture->imu[accelY]<GST_SLIDE_RIGHT_EVT_TGR)
+    {
+        return 1;
+    }
+    return 0;
+}
+
 
 gesture_t *createGesture(void)
 {
@@ -86,20 +105,17 @@ void updateGesture(gesture_t *_gesture, double *_imu, float _q0, float _q1, floa
     _gesture->quaternion.hamiltonForm.q3 = _q3;          
 }
 
-uint8_t analyzeGestures(gesture_t *_gesture)
+void analyzeGestures(gesture_t *_gesture, uint8_t *_gesturesPayload)
 {
-    uint8_t gesturesPayload = 0;
     vector_t vector = {VECTOR_REF};
     vector = rotateVector(vector, _gesture->quaternion.hamiltonForm);
-    printf("%f",vector.i);
-
-    return gesturesPayload = 
-        ((isPointingUp(vector) << GST_POINTING_UP_PLOAD_BIT) |
-        (isPointingDown(vector) << GST_POINTING_DOWN_PLOAD_BIT) |
-        (isPointingFront(vector) << GST_POINTING_FRONT_PLOAD_BIT) |
-        (isPointingBack(vector) << GST_POINTING_BACK_PLOAD_BIT) |
-        (isPointingLeft(vector) << GST_POINTING_LEFT_PLOAD_BIT) |
-        (isPointingRight(vector) << GST_POINTING_RIGHT_PLOAD_BIT));
+    
+    setBitInByte(_gesturesPayload, GST_POINTING_UP_PLOAD_BIT, isPointingUp(vector));
+    setBitInByte(_gesturesPayload, GST_POINTING_DOWN_PLOAD_BIT, isPointingDown(vector));
+    setBitInByte(_gesturesPayload, GST_POINTING_FRONT_PLOAD_BIT, isPointingFront(vector));
+    setBitInByte(_gesturesPayload, GST_POINTING_BACK_PLOAD_BIT, isPointingBack(vector));
+    setBitInByte(_gesturesPayload, GST_POINTING_LEFT_PLOAD_BIT, isPointingLeft(vector));
+    setBitInByte(_gesturesPayload, GST_POINTING_RIGHT_PLOAD_BIT, isPointingRight(vector));
 }
 
 void tGestures (void *pv)
@@ -114,7 +130,14 @@ void tGestures (void *pv)
             MadgwickAHRSupdateIMU(processedValues[gyroX],processedValues[gyroY],processedValues[gyroZ],
                                 processedValues[accelX],processedValues[accelY],processedValues[accelZ]);
             updateGesture(gesture, (double *)processedValues, q0, q1, q2, q3);
-            //gesturesPayload = analyzeGestures(gesture);    
+            if (isPunching(gesture))
+            {
+                toggleBitInByte(&gesturesPayload, GST_FIST_BUMP_PLOAD_BIT);
+            }
+            if (isSlidingRight(gesture))
+            {
+                toggleBitInByte(&gesturesPayload, GST_SLIDE_RIGHT_PLOAD_BIT);
+            }  
         }
         else
         {

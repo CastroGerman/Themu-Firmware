@@ -4,7 +4,31 @@
 #include <string.h>
 #include "configs.h"
 #include "MadgwickAHRS.h"
+
 static esp_adc_cal_characteristics_t *adc_chars;
+
+void setBitInByte (uint8_t *_byte, uint8_t _bit, uint8_t _status)
+{
+    *_byte &= ~(1 << _bit);
+    *_byte |= (_status << _bit);
+}
+
+uint8_t getBitInByte (uint8_t *_byte, uint8_t _bit)
+{
+    return ((*_byte >> _bit) & 1);
+}
+
+void toggleBitInByte (uint8_t *_byte, uint8_t _bit)
+{
+    if (getBitInByte(_byte, _bit) == 1)
+    {
+        setBitInByte(_byte, _bit, 0);
+    }
+    else
+    {
+        setBitInByte(_byte, _bit, 1);
+    }
+}
 
 static void check_efuse()
 {
@@ -119,14 +143,27 @@ void InitGPIO (void)
     gpio_isr_handler_add(BUTTON_PIN, glove_button_isr_handler, (void*) NULL);
 }
 
-int getFingerFlexChannel(adc1_channel_t _channel)
+
+int getBatteryLevel (void)
+{
+    adc1_channel_t _channel = BATT_CHANNEL;
+    return getADC1Channel(_channel);
+}
+
+
+int getFingerFlexChannel (adc1_channel_t _channel)
+{
+    return getADC1Channel(_channel);
+}
+
+int getADC1Channel (adc1_channel_t _channel)
 {
     int adcRead = 0;
     //Multisampling
-    for (int i = 0; i < NO_OF_SAMPLES; i++) {
+    for (int i = 0; i < NUM_OF_SAMPLES; i++) {
         adcRead += adc1_get_raw(_channel);
     }
-    adcRead /= NO_OF_SAMPLES;
+    adcRead /= NUM_OF_SAMPLES;
 
     #ifdef ENABLE_THEMU_ADC_LOGS
     uint32_t volts;
@@ -152,6 +189,7 @@ void IRAM_ATTR glove_button_isr_handler (void *pv)
 
 void tGPIO (void *pv)
 {
+    gpio_set_level(FB_LED_PIN, LED_ON);
     uint32_t notifycount = 0;
     while (1)
     {
@@ -167,11 +205,18 @@ void tGPIO (void *pv)
                 q2 = 0.0f;
                 q3 = 0.0f;
                 gpio_set_level(FB_LED_PIN, LED_OFF);
+                //vTaskSuspend(thBLE);
+                //bleAbleToSend = 0;
+                //cortar timer
             }
             else
             {
                 gpio_set_level(FB_LED_PIN, LED_ON);
-            }  
+                //vTaskResume(thBLE);
+                //bleAbleToSend = 1;
+                //arrancar timer ble
+            } 
+            vTaskDelay(100);
             //printf("Notified GPIO 1\n");        
         }
         else if (notifycount == 2)

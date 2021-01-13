@@ -6,7 +6,7 @@
 #include <esp_adc_cal.h>
 
 #define DEFAULT_VREF    1100        //[mV]. Use adc2_vref_to_gpio() to obtain a better estimate
-#define NO_OF_SAMPLES   64          //Multisampling
+#define NUM_OF_SAMPLES   64          //Multisampling
 #define ADC_CAL_MAX     (int)4100   //To be defined in the calibration process into a struct.
 #define ADC_CAL_MIN     (int)2600
 #define FB_LED_PIN      GPIO_NUM_2
@@ -18,6 +18,10 @@
 #define FB_LED_GREEN_PIN    GPIO_NUM_26
 #define FB_LED_BLUE_PIN     GPIO_NUM_12
 #define BUTTON_PIN          GPIO_NUM_25
+
+#define FB_LED_RED_PLOAD_BIT    0
+#define FB_LED_GREEN_PLOAD_BIT  1
+#define FB_LED_BLUE_PLOAD_BIT   2
 
 /**Pin Reference:
  * GPIO 36 defined as channel 0 of ADC1.
@@ -50,11 +54,14 @@
 #define LITTLE  4
 
 
-
+void setBitInByte (uint8_t *_byte, uint8_t _bit, uint8_t _status);
+uint8_t getBitInByte (uint8_t *_byte, uint8_t _bit);
+void toggleBitInByte (uint8_t *_byte, uint8_t _bit);
 void InitGPIO (void);
 void InitADC1 (void);
+int getBatteryLevel (void);
 int getFingerFlexChannel(adc1_channel_t _channel);
-void readADC1_delete(void);
+int getADC1Channel (adc1_channel_t _channel);
 void IRAM_ATTR glove_button_isr_handler (void *pv);
 void tGPIO (void *pv);
 

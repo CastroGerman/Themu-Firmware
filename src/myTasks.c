@@ -25,6 +25,7 @@ void InitTasks(void)
     #ifdef ENABLE_THEMU_GESTURES
     xTaskCreatePinnedToCore(tGestures, (const char *) "tGestures", tGESTURES_STACK_SIZE, NULL, tGESTURES_PRIORITY, &thGestures, tGESTURES_CORE_ID);
     #endif
+
 }
 
 /**Currently three sleep-related features in ESP-IDF:

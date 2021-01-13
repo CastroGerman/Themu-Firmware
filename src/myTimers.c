@@ -122,7 +122,7 @@ void tG0Timer1 (void *pv)
         if(notifycount == 1)
         {
             #ifdef ENABLE_THEMU_BLE
-            xTaskNotify(thBLE, 1, eSetValueWithOverwrite);
+            xTaskNotify(thBLE, 1, eSetValueWithoutOverwrite);
             #endif
         }
         else

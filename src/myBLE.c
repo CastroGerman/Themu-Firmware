@@ -65,13 +65,71 @@ static struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
 char *bleLogMsg;
 #endif
 
-prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
 /*Saving APP parameters to handle notifications*/
+gloveProfile_t *a;
+
+/*
+prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
 esp_gatt_if_t a_gatts_if;
 uint16_t a_conn_id;
 cccd_t a_cccd;
+uint8_t bleAbleToSend = 1;
+*/
 
+gloveProfile_t *createGloveProfile (void)
+{
+    gloveProfile_t *gloveProf = pvPortMalloc(sizeof(gloveProfile_t));
+    gloveProf->prepare_read_env = NULL;
+    gloveProf->prepare_write_env = NULL;
+    gloveProf->prepare_read_env = pvPortMalloc(sizeof(prepare_type_env_t));
+    gloveProf->prepare_write_env = pvPortMalloc(sizeof(prepare_type_env_t));
+    gloveProf->prepare_read_env->prepare_buf = NULL;
+    gloveProf->prepare_write_env->prepare_buf = NULL;
+    return gloveProf;
+}
 
+void disableProfileNotifications(gloveProfile_t *_profile)
+{
+    _profile->cccd.battery = NOTIFICATION_DISABLE;
+    _profile->cccd.fb_led = NOTIFICATION_DISABLE;
+    _profile->cccd.flex_sensor = NOTIFICATION_DISABLE;
+    _profile->cccd.gestures = NOTIFICATION_DISABLE;
+    _profile->cccd.restart = NOTIFICATION_DISABLE;
+    #ifdef ENABLE_THEMU_BLE_LOGS
+    _profile->cccd.ble_log = NOTIFICATION_DISABLE;
+    #endif
+}
+
+//Verify for write permission and CCCD value. Return the CCCD value on success or 0 on fail.
+uint16_t getCCCD(esp_ble_gatts_cb_param_t *_param)
+{
+    if(_param->write.len == 2)
+        {
+        uint16_t descr_value = _param->write.value[1]<<8 | _param->write.value[0];
+        if (descr_value == 0x0001){
+            if (a_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY){
+                ESP_LOGI(GATTS_TAG, "Notify enable");
+                return NOTIFICATION_ENABLE;
+            }
+        }else if (descr_value == 0x0002){
+            if (a_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
+                ESP_LOGI(GATTS_TAG, "Indicate enable");
+                return INDICATIONS_ENABLE;
+            }
+        }
+        else if (descr_value == 0x0000){
+            ESP_LOGI(GATTS_TAG, "Notify & indicate disable ");
+            return NOTIFICATION_DISABLE;
+        }else{
+            ESP_LOGE(GATTS_TAG, "Unknown descriptor value.");
+        }
+    }
+    else
+    {
+        ESP_LOGE(GATTS_TAG, "Descriptor length out of range. Expected 16 bits.");
+    } 
+    return 0;
+}
 
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
@@ -152,7 +210,7 @@ static void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *
     if (param->write.need_rsp){
         if (param->write.is_prep){
             if (prepare_write_env->prepare_buf == NULL) {
-                prepare_write_env->prepare_buf = (uint8_t *)malloc(PREPARE_BUF_MAX_SIZE*sizeof(uint8_t));
+                prepare_write_env->prepare_buf = (uint8_t *)pvPortMalloc(PREPARE_BUF_MAX_SIZE*sizeof(uint8_t));
                 prepare_write_env->prepare_len = 0;
                 if (prepare_write_env->prepare_buf == NULL) {
                     ESP_LOGE(GATTS_TAG, "Gatt_server prep no mem\n");
@@ -166,7 +224,7 @@ static void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *
                 }
             }
 
-            esp_gatt_rsp_t *gatt_rsp = (esp_gatt_rsp_t *)malloc(sizeof(esp_gatt_rsp_t));
+            esp_gatt_rsp_t *gatt_rsp = (esp_gatt_rsp_t *)pvPortMalloc(sizeof(esp_gatt_rsp_t));
             gatt_rsp->attr_value.len = param->write.len;
             gatt_rsp->attr_value.handle = param->write.handle;
             gatt_rsp->attr_value.offset = param->write.offset;
@@ -176,7 +234,7 @@ static void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *
             if (response_err != ESP_OK){
                ESP_LOGE(GATTS_TAG, "Send response error\n");
             }
-            free(gatt_rsp);
+            vPortFree(gatt_rsp);
             if (status != ESP_GATT_OK){
                 return;
             }
@@ -198,12 +256,11 @@ static void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, 
         ESP_LOGI(GATTS_TAG,"ESP_GATT_PREP_WRITE_CANCEL");
     }
     if (prepare_write_env->prepare_buf) {
-        free(prepare_write_env->prepare_buf);
+        vPortFree(prepare_write_env->prepare_buf);
         prepare_write_env->prepare_buf = NULL;
     }
     prepare_write_env->prepare_len = 0;
 }
-
 
 static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
 {
@@ -214,8 +271,8 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
 
     
     if(param->write.handle == flex_sensor_descr_handle)
-    {   
-        a_cccd.flex_sensor = getCCCD(param);
+    {
+        a->cccd.flex_sensor = getCCCD(param);
     }
     else if(param->write.handle == restart_charvalue_handle)
     {
@@ -227,7 +284,7 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
     }
     else if(param->write.handle == gestures_descr_handle)
     {
-        a_cccd.gestures = getCCCD(param);
+        a->cccd.gestures = getCCCD(param);
     }
     else if(param->write.handle == fb_led_charvalue_handle)
     {
@@ -245,16 +302,16 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
     }
     else if(param->write.handle == battery_descr2_handle)
     {
-        a_cccd.battery = getCCCD(param);
+        a->cccd.battery = getCCCD(param);
     }
     #ifdef ENABLE_THEMU_BLE_LOGS
     else if(param->write.handle == log_descr_handle)
     {
-        a_cccd.ble_log = getCCCD(param);
+        a->cccd.ble_log = getCCCD(param);
     } 
     #endif
 
-    example_write_event_env(gatts_if, &a_prepare_write_env, param); 
+    example_write_event_env(gatts_if, a->prepare_write_env, param); 
 }
 
 static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
@@ -266,107 +323,106 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
     rsp.attr_value.handle = param->read.handle;
 
     /*Supporting long reads (more than the 22 bytes standard payload)*/
-    if (param->read.is_long && a_prepare_read_env.prepare_buf)
+    if (param->read.is_long && a->prepare_read_env->prepare_buf)
     {
-        int remaining_read = (a_prepare_read_env.prepare_len - param->read.offset);
+        int remaining_read = (a->prepare_read_env->prepare_len - param->read.offset);
         rsp.attr_value.len = (remaining_read) > PAYLOAD_LEN ? PAYLOAD_LEN : remaining_read;
-        memcpy(rsp.attr_value.value, a_prepare_read_env.prepare_buf + param->read.offset, rsp.attr_value.len);
-        if (param->read.offset + rsp.attr_value.len >= a_prepare_read_env.prepare_len) 
+        memcpy(rsp.attr_value.value, a->prepare_read_env->prepare_buf + param->read.offset, rsp.attr_value.len);
+        if (param->read.offset + rsp.attr_value.len >= a->prepare_read_env->prepare_len) 
         {
-            if (a_prepare_read_env.prepare_buf) 
+            if (a->prepare_read_env->prepare_buf) 
             {
-                vPortFree(a_prepare_read_env.prepare_buf);
-                a_prepare_read_env.prepare_buf = NULL;
+                vPortFree(a->prepare_read_env->prepare_buf);
+                a->prepare_read_env->prepare_buf = NULL;
             }
-            a_prepare_read_env.prepare_len = 0;
+            a->prepare_read_env->prepare_len = 0;
         }
     }else{
-        vPortFree(a_prepare_read_env.prepare_buf);
-        a_prepare_read_env.prepare_buf = NULL;
+        discardPayload(a->prepare_read_env);
         if(param->read.handle == flex_sensor_charvalue_handle)
         {  
             #ifdef ENABLE_THEMU_ADC
-            prepReadFlexSensors();             
+            prepReadFlexSensors(a->prepare_read_env);             
             #else
-            prepReadDummyBytes(5);
+            prepReadDummyBytes(a->prepare_read_env, 5);
             #endif
         }
         else if(param->read.handle == flex_sensor_descr_handle)
         {
-            prepReadCCCD(a_cccd.flex_sensor);
+            prepReadCCCD(a->prepare_read_env, a->cccd.flex_sensor);
         }
         else if(param->read.handle == restart_charvalue_handle)
         {
-            prepReadDummyBytes(1);
+            prepReadDummyBytes(a->prepare_read_env, 1);
         }
         else if(param->read.handle == restart_descr_handle)
         {
-            prepReadDummyBytes(2);
+            prepReadDummyBytes(a->prepare_read_env, 2);
         }
         else if(param->read.handle == gestures_charvalue_handle)
         {
             #ifdef ENABLE_THEMU_GESTURES
-            prepReadGestures(gesture);
+            prepReadGestures(a->prepare_read_env, gesture, &gesturesPayload);
             #elif defined(ENABLE_THEMU_TEST_APP)
-                if(a_prepare_read_env.prepare_buf == NULL)
+                if(a->prepare_read_env->prepare_buf == NULL)
                     {
                         uint8_t dummyRsp[1] = {1};
-                        a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummyRsp));
-                        a_prepare_read_env.prepare_len = sizeof(dummyRsp);
-                        memcpy(a_prepare_read_env.prepare_buf, &dummyRsp, a_prepare_read_env.prepare_len);
+                        a->prepare_read_env->prepare_buf = pvPortMalloc(sizeof(dummyRsp));
+                        a->prepare_read_env->prepare_len = sizeof(dummyRsp);
+                        memcpy(a->prepare_read_env->prepare_buf, &dummyRsp, a->prepare_read_env->prepare_len);
                     }
             #else
-            prepReadDummyBytes(1);
+            prepReadDummyBytes(a->prepare_read_env, 1);
             #endif
         }
         else if(param->read.handle == gestures_descr_handle)
         {
-            prepReadCCCD(a_cccd.gestures);
+            prepReadCCCD(a->prepare_read_env, a->cccd.gestures);
         }
         else if(param->read.handle == fb_led_charvalue_handle)
         {
-            prepReadFBLed();
+            prepReadFBLed(a->prepare_read_env);
         }
         else if(param->read.handle == fb_led_descr_handle)
         {
-            prepReadDummyBytes(2);
+            prepReadDummyBytes(a->prepare_read_env, 2);
         }
         else if(param->read.handle == battery_charvalue_handle)
         {
             #ifdef ENABLE_THEMU_ADC
-            prepReadBatteryLevel();
+            prepReadBatteryLevel(a->prepare_read_env);
             #else
-            prepReadDummyBytes(1);
+            prepReadDummyBytes(a->prepare_read_env, 1);
             #endif
         }
         else if(param->read.handle == battery_descr_handle)
         {
-            prepReadDummyBytes(2);
+            prepReadDummyBytes(a->prepare_read_env, 2);
         }
         else if(param->read.handle == battery_descr2_handle)
         {
-            prepReadCCCD(a_cccd.battery);
+            prepReadCCCD(a->prepare_read_env, a->cccd.battery);
         }
         #ifdef ENABLE_THEMU_BLE_LOGS
         else if(param->read.handle == log_descr_handle)
         {
-            prepReadCCCD(a_cccd.ble_log);
+            prepReadCCCD(a->prepare_read_env, a->cccd.ble_log);
         }
         #endif
         else
         {
-            prepReadDummyBytes(1);
+            prepReadDummyBytes(a->prepare_read_env, 1);
         }
         
-        rsp.attr_value.len = a_prepare_read_env.prepare_len;
-        memcpy(rsp.attr_value.value, a_prepare_read_env.prepare_buf, rsp.attr_value.len);  
+        //if(!bleAbleToSend){discardPayload(a->prepare_read_env);}
+        rsp.attr_value.len = a->prepare_read_env->prepare_len;
+        memcpy(rsp.attr_value.value, a->prepare_read_env->prepare_buf, rsp.attr_value.len);  
     }
     
     esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
                                 ESP_GATT_OK, &rsp);
-
+    discardPayload(a->prepare_read_env);
 }
-
 
 /*Application Profiles callback functions*/
 static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
@@ -432,7 +488,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
     case ESP_GATTS_EXEC_WRITE_EVT:
         ESP_LOGI(GATTS_TAG,"ESP_GATTS_EXEC_WRITE_EVT");
         esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, NULL);
-        example_exec_write_event_env(&a_prepare_write_env, param);
+        example_exec_write_event_env(a->prepare_write_env, param);
         break;
     case ESP_GATTS_MTU_EVT:
         ESP_LOGI(GATTS_TAG, "ESP_GATTS_MTU_EVT, MTU %d", param->mtu.mtu);
@@ -620,15 +676,15 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         esp_ble_gap_update_conn_params(&conn_params); /*this triggers a GAP event ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT*/
 
         /*Saving app parameters to handle notifications*/
-        a_gatts_if = gatts_if;
-        a_conn_id = param->connect.conn_id;
-        disableAllNotifications();
+        a->gatts_if = gatts_if;
+        a->conn_id = param->connect.conn_id;
+        disableProfileNotifications(a);
         timer_start(TIMER_GROUP_0, TIMER_0);
         break;
     }
     case ESP_GATTS_DISCONNECT_EVT:
         ESP_LOGI(GATTS_TAG, "ESP_GATTS_DISCONNECT_EVT, disconnect reason 0x%x", param->disconnect.reason);
-        disableAllNotifications();
+        disableProfileNotifications(a);
         timer_pause(TIMER_GROUP_0, TIMER_0);
         esp_ble_gap_start_advertising(&adv_params);
         break;
@@ -648,9 +704,9 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
     }
 }
 
-
 void InitBLE()
 {
+    a = createGloveProfile();
     esp_err_t ret;
 
     /*Initialize NVS. (Non-Volatile Storage library)
@@ -727,50 +783,6 @@ void InitBLE()
     return;
 }
 
-//Verify for write permission and CCCD value. Return the CCCD value on success or 0 on fail.
-uint16_t getCCCD(esp_ble_gatts_cb_param_t *_param)
-{
-    if(_param->write.len == 2)
-        {
-        uint16_t descr_value = _param->write.value[1]<<8 | _param->write.value[0];
-        if (descr_value == 0x0001){
-            if (a_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY){
-                ESP_LOGI(GATTS_TAG, "Notify enable");
-                return NOTIFICATION_ENABLE;
-            }
-        }else if (descr_value == 0x0002){
-            if (a_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
-                ESP_LOGI(GATTS_TAG, "Indicate enable");
-                return INDICATIONS_ENABLE;
-            }
-        }
-        else if (descr_value == 0x0000){
-            ESP_LOGI(GATTS_TAG, "Notify & indicate disable ");
-            return NOTIFICATION_DISABLE;
-        }else{
-            ESP_LOGE(GATTS_TAG, "Unknown descriptor value.");
-        }
-    }
-    else
-    {
-        ESP_LOGE(GATTS_TAG, "Descriptor length out of range. Expected 16 bits.");
-    } 
-    return 0;
-}
-
-void disableAllNotifications(void)
-{
-    a_cccd.battery = NOTIFICATION_DISABLE;
-    a_cccd.fb_led = NOTIFICATION_DISABLE;
-    a_cccd.flex_sensor = NOTIFICATION_DISABLE;
-    a_cccd.gestures = NOTIFICATION_DISABLE;
-    a_cccd.restart = NOTIFICATION_DISABLE;
-    #ifdef ENABLE_THEMU_BLE_LOGS
-    a_cccd.ble_log = NOTIFICATION_DISABLE;
-    #endif
-}
-
-
 /**Why MTU agreement is needed in order to set a notification:
  * Thread: https://github.com/espressif/esp-idf/issues/3315
  * For posterity, I reviewed the Bluetooth specification (v4.2 & v5.1), 
@@ -780,65 +792,87 @@ void disableAllNotifications(void)
  */
 void tBLE (void *pv)
 {
-    a_prepare_read_env.prepare_buf=NULL;
+    discardPayload(a->prepare_read_env);
+    discardPayload(a->prepare_write_env);
     uint32_t notifycount = 0;
     while (1)
     {
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {   
-            discardActualPayload();
-            if(a_cccd.flex_sensor)
+            //discardPayload();
+            if(a->cccd.flex_sensor)
             {
                 #ifdef ENABLE_THEMU_ADC
-                prepReadFlexSensors();
+                prepReadFlexSensors(a->prepare_read_env);
                 #else
-                prepReadDummyBytes(5);
+                prepReadDummyBytes(a->prepare_read_env, 5);
                 #endif
-                esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, flex_sensor_charvalue_handle,
-                        a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
-                vPortFree(a_prepare_read_env.prepare_buf);
-                a_prepare_read_env.prepare_buf = NULL;
+               /*if(!bleAbleToSend)
+                {
+                    discardPayload();
+                    uint8_t dummyRsp[5]={0,0,0,0,0};
+                    a->prepare_read_env->prepare_buf = pvPortMalloc(sizeof(dummyRsp));
+                    a->prepare_read_env->prepare_len = sizeof(dummyRsp);
+                    memcpy(a->prepare_read_env->prepare_buf, &dummyRsp, a->prepare_read_env->prepare_len);
+                }*/
+                esp_ble_gatts_send_indicate(a->gatts_if, a->conn_id, flex_sensor_charvalue_handle,
+                        a->prepare_read_env->prepare_len, a->prepare_read_env->prepare_buf, false);
+                discardPayload(a->prepare_read_env);
             }
-            if(a_cccd.restart)
+            if(a->cccd.restart)
             {
 
             }
-            if(a_cccd.gestures)
+            if(a->cccd.gestures)
             {
                 #ifdef ENABLE_THEMU_GESTURES
-                prepReadGestures(gesture);
+                prepReadGestures(a->prepare_read_env, gesture, &gesturesPayload);
                 #elif defined(ENABLE_THEMU_TEST_APP)
-                if(a_prepare_read_env.prepare_buf == NULL)
+                if(a->prepare_read_env->prepare_buf == NULL)
                     {
                         uint8_t dummyRsp[1] = {1};
-                        a_prepare_read_env.prepare_buf = pvPortMalloc(sizeof(dummyRsp));
-                        a_prepare_read_env.prepare_len = sizeof(dummyRsp);
-                        memcpy(a_prepare_read_env.prepare_buf, &dummyRsp, a_prepare_read_env.prepare_len);
+                        a->prepare_read_env->prepare_buf = pvPortMalloc(sizeof(dummyRsp));
+                        a->prepare_read_env->prepare_len = sizeof(dummyRsp);
+                        memcpy(a->prepare_read_env->prepare_buf, &dummyRsp, a->prepare_read_env->prepare_len);
                     }
                 #else
-                prepReadDummyBytes(1);
+                prepReadDummyBytes(a->prepare_read_env, 1);
                 #endif
-                esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, gestures_charvalue_handle,
-                        a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
-                vPortFree(a_prepare_read_env.prepare_buf);
-                a_prepare_read_env.prepare_buf = NULL;
+                /*if(!bleAbleToSend)
+                {
+                    discardPayload();
+                    uint8_t dummyRsp[1]={0};
+                    a->prepare_read_env->prepare_buf = pvPortMalloc(sizeof(dummyRsp));
+                    a->prepare_read_env->prepare_len = sizeof(dummyRsp);
+                    memcpy(a->prepare_read_env->prepare_buf, &dummyRsp, a->prepare_read_env->prepare_len);
+                }*/                
+                esp_ble_gatts_send_indicate(a->gatts_if, a->conn_id, gestures_charvalue_handle,
+                        a->prepare_read_env->prepare_len, a->prepare_read_env->prepare_buf, false);
+                discardPayload(a->prepare_read_env);
             }
-            if(a_cccd.fb_led)
+            if(a->cccd.fb_led)
             {
 
             }
-            if(a_cccd.battery)
+            if(a->cccd.battery)
             {
                 #ifdef ENABLE_THEMU_ADC
-                prepReadBatteryLevel();
+                prepReadBatteryLevel(a->prepare_read_env);
                 #else 
-                prepReadDummyBytes(1);
+                prepReadDummyBytes(a->prepare_read_env, 1);
                 #endif
-                esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, battery_charvalue_handle,
-                        a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
-                vPortFree(a_prepare_read_env.prepare_buf);
-                a_prepare_read_env.prepare_buf = NULL;
+                /*if(!bleAbleToSend)
+                {
+                    discardPayload();
+                    uint8_t dummyRsp[1]={0};
+                    a->prepare_read_env->prepare_buf = pvPortMalloc(sizeof(dummyRsp));
+                    a->prepare_read_env->prepare_len = sizeof(dummyRsp);
+                    memcpy(a->prepare_read_env->prepare_buf, &dummyRsp, a->prepare_read_env->prepare_len);
+                }*/
+                esp_ble_gatts_send_indicate(a->gatts_if, a->conn_id, battery_charvalue_handle,
+                        a->prepare_read_env->prepare_len, a->prepare_read_env->prepare_buf, false);
+                discardPayload(a->prepare_read_env);
             }
         }
         #ifdef ENABLE_THEMU_BLE_LOGS
@@ -846,11 +880,11 @@ void tBLE (void *pv)
         {
             if(a_cccd.ble_log)
             {
-                prepReadBLELog(bleLogMsg);
+                prepReadBLELog(a->prepare_read_env, bleLogMsg);
+                //if(!bleAbleToSend){discardActualPayload();}
                 esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, log_charvalue_handle,
-                        a_prepare_read_env.prepare_len, a_prepare_read_env.prepare_buf, false);
-                vPortFree(a_prepare_read_env.prepare_buf);
-                a_prepare_read_env.prepare_buf = NULL;
+                        a->prepare_read_env->prepare_len, a->prepare_read_env->prepare_buf, false);
+                discardPayload(a->prepare_read_env);
             } 
         }
         #endif
