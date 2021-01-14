@@ -364,13 +364,8 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
             #ifdef ENABLE_THEMU_GESTURES
             prepReadGestures(a->prepare_read_env, gesture, &gesturesPayload);
             #elif defined(ENABLE_THEMU_TEST_APP)
-                if(a->prepare_read_env->prepare_buf == NULL)
-                    {
-                        uint8_t dummyRsp[1] = {1};
-                        a->prepare_read_env->prepare_buf = pvPortMalloc(sizeof(dummyRsp));
-                        a->prepare_read_env->prepare_len = sizeof(dummyRsp);
-                        memcpy(a->prepare_read_env->prepare_buf, &dummyRsp, a->prepare_read_env->prepare_len);
-                    }
+            uint8_t buf[] = {0x01};
+            prepReadCustomBytes(a->prepare_read_env, sizeof(buf), buf);
             #else
             prepReadDummyBytes(a->prepare_read_env, 1);
             #endif
@@ -414,7 +409,6 @@ static void gatts_profile_a_read_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_cb
             prepReadDummyBytes(a->prepare_read_env, 1);
         }
         
-        //if(!bleAbleToSend){discardPayload(a->prepare_read_env);}
         rsp.attr_value.len = a->prepare_read_env->prepare_len;
         memcpy(rsp.attr_value.value, a->prepare_read_env->prepare_buf, rsp.attr_value.len);  
     }
@@ -800,7 +794,6 @@ void tBLE (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {   
-            //discardPayload();
             if(a->cccd.flex_sensor)
             {
                 #ifdef ENABLE_THEMU_ADC
@@ -808,14 +801,6 @@ void tBLE (void *pv)
                 #else
                 prepReadDummyBytes(a->prepare_read_env, 5);
                 #endif
-               /*if(!bleAbleToSend)
-                {
-                    discardPayload();
-                    uint8_t dummyRsp[5]={0,0,0,0,0};
-                    a->prepare_read_env->prepare_buf = pvPortMalloc(sizeof(dummyRsp));
-                    a->prepare_read_env->prepare_len = sizeof(dummyRsp);
-                    memcpy(a->prepare_read_env->prepare_buf, &dummyRsp, a->prepare_read_env->prepare_len);
-                }*/
                 esp_ble_gatts_send_indicate(a->gatts_if, a->conn_id, flex_sensor_charvalue_handle,
                         a->prepare_read_env->prepare_len, a->prepare_read_env->prepare_buf, false);
                 discardPayload(a->prepare_read_env);
@@ -829,24 +814,11 @@ void tBLE (void *pv)
                 #ifdef ENABLE_THEMU_GESTURES
                 prepReadGestures(a->prepare_read_env, gesture, &gesturesPayload);
                 #elif defined(ENABLE_THEMU_TEST_APP)
-                if(a->prepare_read_env->prepare_buf == NULL)
-                    {
-                        uint8_t dummyRsp[1] = {1};
-                        a->prepare_read_env->prepare_buf = pvPortMalloc(sizeof(dummyRsp));
-                        a->prepare_read_env->prepare_len = sizeof(dummyRsp);
-                        memcpy(a->prepare_read_env->prepare_buf, &dummyRsp, a->prepare_read_env->prepare_len);
-                    }
+                uint8_t buf[] = {0x01};
+                prepReadCustomBytes(a->prepare_read_env, sizeof(buf), buf);
                 #else
                 prepReadDummyBytes(a->prepare_read_env, 1);
-                #endif
-                /*if(!bleAbleToSend)
-                {
-                    discardPayload();
-                    uint8_t dummyRsp[1]={0};
-                    a->prepare_read_env->prepare_buf = pvPortMalloc(sizeof(dummyRsp));
-                    a->prepare_read_env->prepare_len = sizeof(dummyRsp);
-                    memcpy(a->prepare_read_env->prepare_buf, &dummyRsp, a->prepare_read_env->prepare_len);
-                }*/                
+                #endif               
                 esp_ble_gatts_send_indicate(a->gatts_if, a->conn_id, gestures_charvalue_handle,
                         a->prepare_read_env->prepare_len, a->prepare_read_env->prepare_buf, false);
                 discardPayload(a->prepare_read_env);
@@ -862,14 +834,6 @@ void tBLE (void *pv)
                 #else 
                 prepReadDummyBytes(a->prepare_read_env, 1);
                 #endif
-                /*if(!bleAbleToSend)
-                {
-                    discardPayload();
-                    uint8_t dummyRsp[1]={0};
-                    a->prepare_read_env->prepare_buf = pvPortMalloc(sizeof(dummyRsp));
-                    a->prepare_read_env->prepare_len = sizeof(dummyRsp);
-                    memcpy(a->prepare_read_env->prepare_buf, &dummyRsp, a->prepare_read_env->prepare_len);
-                }*/
                 esp_ble_gatts_send_indicate(a->gatts_if, a->conn_id, battery_charvalue_handle,
                         a->prepare_read_env->prepare_len, a->prepare_read_env->prepare_buf, false);
                 discardPayload(a->prepare_read_env);
@@ -881,13 +845,28 @@ void tBLE (void *pv)
             if(a_cccd.ble_log)
             {
                 prepReadBLELog(a->prepare_read_env, bleLogMsg);
-                //if(!bleAbleToSend){discardActualPayload();}
                 esp_ble_gatts_send_indicate(a_gatts_if, a_conn_id, log_charvalue_handle,
                         a->prepare_read_env->prepare_len, a->prepare_read_env->prepare_buf, false);
                 discardPayload(a->prepare_read_env);
             } 
         }
         #endif
+        else if(notifycount == 3)//Disable notifications & clean geastures.
+        {
+            if(a->cccd.gestures)
+            {
+                uint8_t buf[] = {0x00};
+                prepReadCustomBytes(a->prepare_read_env, sizeof(buf), buf);            
+                esp_ble_gatts_send_indicate(a->gatts_if, a->conn_id, gestures_charvalue_handle,
+                        a->prepare_read_env->prepare_len, a->prepare_read_env->prepare_buf, false);
+                discardPayload(a->prepare_read_env);
+            }
+            timer_pause(TIMER_GROUP_0, TIMER_1);
+        }
+        else if(notifycount == 4)//Enable notifications.
+        {
+            timer_start(TIMER_GROUP_0, TIMER_1); 
+        }
         else
         {
             printf("TIMEOUT waiting notification on tBLE\n");

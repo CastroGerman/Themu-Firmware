@@ -6,7 +6,7 @@
 
 
 
-void prepReadCustomBytes(prepare_type_env_t *_prepare_read_env, int _bytesLen, uint8_t _bytes[_bytesLen]);
+void prepReadCustomBytes(prepare_type_env_t *_prepare_read_env, int _bytesLen, const uint8_t *_bytes);
 void prepReadDummyBytes(prepare_type_env_t *_prepare_read_env, int _bytes);
 void prepReadCCCD(prepare_type_env_t *_prepare_read_env, uint16_t _cccd);
 void prepReadFlexSensors(prepare_type_env_t *_prepare_read_env);

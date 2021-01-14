@@ -129,7 +129,7 @@ void InitGPIO (void)
     gpio_config(&io_config);
 
     //Setting glove button
-    io_config.intr_type = GPIO_PIN_INTR_NEGEDGE;
+    io_config.intr_type = GPIO_PIN_INTR_POSEDGE;
     io_config.pin_bit_mask = GPIO_SEL_25;
     io_config.mode = GPIO_MODE_INPUT;
     io_config.pull_up_en = GPIO_PULLUP_ENABLE;
@@ -138,18 +138,16 @@ void InitGPIO (void)
     //change gpio intrrupt type for one pin
     //gpio_set_intr_type(GPIO_SEL_25, GPIO_INTR_ANYEDGE);
     //install gpio isr service
-    gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
+    gpio_install_isr_service(ESP_INTR_FLAG_LOWMED);//ESP_INTR_FLAG_EDGE);
     //hook isr handler for specific gpio pin
     gpio_isr_handler_add(BUTTON_PIN, glove_button_isr_handler, (void*) NULL);
 }
-
 
 int getBatteryLevel (void)
 {
     adc1_channel_t _channel = BATT_CHANNEL;
     return getADC1Channel(_channel);
 }
-
 
 int getFingerFlexChannel (adc1_channel_t _channel)
 {
@@ -183,7 +181,7 @@ int getADC1Channel (adc1_channel_t _channel)
 void IRAM_ATTR glove_button_isr_handler (void *pv)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xTaskNotifyFromISR(thGPIO, 1, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
+    xTaskNotifyFromISR(thGPIO, 1, eSetValueWithoutOverwrite, &xHigherPriorityTaskWoken);
     if(xHigherPriorityTaskWoken != pdFALSE){}
 }
 
@@ -205,23 +203,17 @@ void tGPIO (void *pv)
                 q2 = 0.0f;
                 q3 = 0.0f;
                 gpio_set_level(FB_LED_PIN, LED_OFF);
-                //vTaskSuspend(thBLE);
-                //bleAbleToSend = 0;
-                //cortar timer
+                #ifdef ENABLE_THEMU_BLE
+                xTaskNotify(thBLE, 3, eSetValueWithOverwrite);
+                #endif
             }
             else
             {
                 gpio_set_level(FB_LED_PIN, LED_ON);
-                //vTaskResume(thBLE);
-                //bleAbleToSend = 1;
-                //arrancar timer ble
-            } 
-            vTaskDelay(100);
-            //printf("Notified GPIO 1\n");        
-        }
-        else if (notifycount == 2)
-        {
-            getFingerFlexChannel(ADC1_CHANNEL_3);
+                #ifdef ENABLE_THEMU_BLE
+                xTaskNotify(thBLE, 4, eSetValueWithOverwrite);
+                #endif
+            }    
         }
         else
         {
