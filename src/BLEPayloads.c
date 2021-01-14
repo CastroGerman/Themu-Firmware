@@ -3,9 +3,19 @@
 #include <string.h>
 
 
-void prepReadCustomBytes(prepare_type_env_t *_prepare_read_env, int _bytesLen, uint8_t _bytes[_bytesLen])
+void prepReadCustomBytes(prepare_type_env_t *_prepare_read_env, int _bytesLen, const uint8_t *_bytes)
 {
-
+    if(_prepare_read_env->prepare_buf == NULL)
+    {
+        uint8_t dummyRsp[_bytesLen];
+        for (int i = 0; i<_bytesLen; i++)
+        {
+            dummyRsp[i] = _bytes[i];
+        }
+        _prepare_read_env->prepare_buf = pvPortMalloc(sizeof(dummyRsp));
+        _prepare_read_env->prepare_len = sizeof(dummyRsp);
+        memcpy(_prepare_read_env->prepare_buf, &dummyRsp, _prepare_read_env->prepare_len);
+    }
 }
 
 void prepReadDummyBytes(prepare_type_env_t *_prepare_read_env, int _bytes)

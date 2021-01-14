@@ -142,12 +142,6 @@ typedef struct gloveProfile
 
 extern gloveProfile_t *a;
 
-extern prepare_type_env_t a_prepare_write_env, a_prepare_read_env;
-extern esp_gatt_if_t a_gatts_if;
-extern uint16_t a_conn_id;
-extern cccd_t a_cccd;
-extern uint8_t bleAbleToSend;
-
 /**Statics:
  * 
  * 
