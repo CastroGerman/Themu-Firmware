@@ -15,8 +15,8 @@
 #define LED_OFF 0
 
 #define FB_LED_RED_PIN      GPIO_NUM_27
-#define FB_LED_GREEN_PIN    GPIO_NUM_26
-#define FB_LED_BLUE_PIN     GPIO_NUM_12
+#define FB_LED_GREEN_PIN    GPIO_NUM_12
+#define FB_LED_BLUE_PIN     GPIO_NUM_26
 #define BUTTON_PIN          GPIO_NUM_25
 
 #define FB_LED_RED_PLOAD_BIT    0
@@ -47,11 +47,11 @@
 #define BATT_CHANNEL_ATT        ADC_ATTEN_DB_6
 
 #define FINGERS 5
-#define THUMB   0
-#define INDEX   1
+#define THUMB   4
+#define INDEX   3
 #define MIDDLE  2
-#define RING    3
-#define LITTLE  4
+#define RING    1
+#define LITTLE  0
 
 
 void setBitInByte (uint8_t *_byte, uint8_t _bit, uint8_t _status);

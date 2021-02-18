@@ -288,9 +288,9 @@ static void gatts_profile_a_write_handle(esp_gatt_if_t gatts_if, esp_ble_gatts_c
     }
     else if(param->write.handle == fb_led_charvalue_handle)
     {
-        gpio_set_level(FB_LED_RED_PIN,(param->write.value[0])&BIT(FB_LED_RED_PLOAD_BIT));
-        gpio_set_level(FB_LED_GREEN_PIN,(param->write.value[0])&BIT(FB_LED_GREEN_PLOAD_BIT));
-        gpio_set_level(FB_LED_BLUE_PIN,(param->write.value[0])&BIT(FB_LED_BLUE_PLOAD_BIT));
+        gpio_set_level(FB_LED_RED_PIN,(~param->write.value[0])&BIT(FB_LED_RED_PLOAD_BIT));
+        gpio_set_level(FB_LED_GREEN_PIN,(~param->write.value[0])&BIT(FB_LED_GREEN_PLOAD_BIT));
+        gpio_set_level(FB_LED_BLUE_PIN,(~param->write.value[0])&BIT(FB_LED_BLUE_PLOAD_BIT));
     }
     else if(param->write.handle == fb_led_descr_handle)
     {
@@ -786,8 +786,12 @@ void InitBLE()
  */
 void tBLE (void *pv)
 {
+    disableProfileNotifications(a);
     discardPayload(a->prepare_read_env);
     discardPayload(a->prepare_write_env);
+    gpio_set_level(FB_LED_RED_PIN,1);
+    gpio_set_level(FB_LED_GREEN_PIN,1);
+    gpio_set_level(FB_LED_BLUE_PIN,1);
     uint32_t notifycount = 0;
     while (1)
     {
@@ -853,6 +857,14 @@ void tBLE (void *pv)
         #endif
         else if(notifycount == 3)//Disable notifications & clean geastures.
         {
+            if(a->cccd.flex_sensor)
+            {
+                uint8_t buf[] = {0x00, 0x00, 0x00, 0x00, 0x00};
+                prepReadCustomBytes(a->prepare_read_env, sizeof(buf), buf);            
+                esp_ble_gatts_send_indicate(a->gatts_if, a->conn_id, flex_sensor_charvalue_handle,
+                        a->prepare_read_env->prepare_len, a->prepare_read_env->prepare_buf, false);
+                discardPayload(a->prepare_read_env);
+            }
             if(a->cccd.gestures)
             {
                 uint8_t buf[] = {0x00};

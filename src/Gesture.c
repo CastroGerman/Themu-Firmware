@@ -63,7 +63,7 @@ int isPointingRight(vector_t _vector)
 
 int isPunching(gesture_t *_gesture)
 {
-    if(_gesture->imu[accelX]>GST_FIST_BUMP_EVT_TGR)
+    if(_gesture->imu[accelX]<GST_FIST_BUMP_EVT_TGR)
     {
         return 1;
     }
@@ -72,7 +72,7 @@ int isPunching(gesture_t *_gesture)
 
 int isSlidingRight(gesture_t *_gesture)
 {
-    if(_gesture->imu[accelY]<GST_SLIDE_RIGHT_EVT_TGR)
+    if(_gesture->imu[accelY]>GST_SLIDE_RIGHT_EVT_TGR)
     {
         return 1;
     }
@@ -108,8 +108,14 @@ void updateGesture(gesture_t *_gesture, double *_imu, float _q0, float _q1, floa
 void analyzeGestures(gesture_t *_gesture, uint8_t *_gesturesPayload)
 {
     vector_t vector = {VECTOR_REF};
+    #ifdef ENABLE_THEMU_ORIENTATION_LOGS
+    printf("Reference Orientation:\t(%f,%f,%f)\n", vector.i, vector.j, vector.k);
+    #endif
     vector = rotateVector(vector, _gesture->quaternion.hamiltonForm);
-    
+    #ifdef ENABLE_THEMU_ORIENTATION_LOGS
+    printf("Rotated Orientation:\t(%f,%f,%f)\n", vector.i, vector.j, vector.k);
+    #endif
+
     setBitInByte(_gesturesPayload, GST_POINTING_UP_PLOAD_BIT, isPointingUp(vector));
     setBitInByte(_gesturesPayload, GST_POINTING_DOWN_PLOAD_BIT, isPointingDown(vector));
     setBitInByte(_gesturesPayload, GST_POINTING_FRONT_PLOAD_BIT, isPointingFront(vector));

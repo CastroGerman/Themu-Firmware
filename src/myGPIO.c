@@ -178,6 +178,10 @@ int getADC1Channel (adc1_channel_t _channel)
     return adcRead;
 }
 
+/**
+ * ISR triggers twice on a single event. Problem related to:
+ * https://github.com/espressif/arduino-esp32/issues/1111
+ */
 void IRAM_ATTR glove_button_isr_handler (void *pv)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -198,10 +202,6 @@ void tGPIO (void *pv)
             * Or set the GPIO mode to GPIO_MODE_INPUT_OUTPUT.*/
             if(gpio_get_level(FB_LED_PIN))
             {
-                q0 = 1.0f;
-                q1 = 0.0f;
-                q2 = 0.0f;
-                q3 = 0.0f;
                 gpio_set_level(FB_LED_PIN, LED_OFF);
                 #ifdef ENABLE_THEMU_BLE
                 xTaskNotify(thBLE, 3, eSetValueWithOverwrite);
@@ -209,6 +209,10 @@ void tGPIO (void *pv)
             }
             else
             {
+                q0 = 0.0f;
+                q1 = 0.0f;
+                q2 = 0.0f;
+                q3 = 1.0f;
                 gpio_set_level(FB_LED_PIN, LED_ON);
                 #ifdef ENABLE_THEMU_BLE
                 xTaskNotify(thBLE, 4, eSetValueWithOverwrite);

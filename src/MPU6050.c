@@ -170,7 +170,7 @@ void tMPU6050 (void *pv)
             printf("Offset Values:\n");
             printValues(offsetValues);
             printf("Processed Values:\n");
-            printValues(processedValues);
+            printValues((double *)processedValues);
             #endif
             #ifdef ENABLE_LIVE_PLOT
             printValues(processedValues);

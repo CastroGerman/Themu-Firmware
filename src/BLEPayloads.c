@@ -75,6 +75,9 @@ void prepReadFBLed(prepare_type_env_t *_prepare_read_env)
         fbLed = (   (uint8_t)gpio_get_level(FB_LED_BLUE_PIN) << FB_LED_BLUE_PLOAD_BIT |
                     (uint8_t)gpio_get_level(FB_LED_GREEN_PIN) << FB_LED_GREEN_PLOAD_BIT |
                     (uint8_t)gpio_get_level(FB_LED_RED_PIN) << FB_LED_RED_PLOAD_BIT );
+        toggleBitInByte(&fbLed, FB_LED_RED_PLOAD_BIT); //Active on low level.
+        toggleBitInByte(&fbLed, FB_LED_GREEN_PLOAD_BIT);
+        toggleBitInByte(&fbLed, FB_LED_BLUE_PLOAD_BIT);
         _prepare_read_env->prepare_buf = pvPortMalloc(sizeof(uint8_t));
         _prepare_read_env->prepare_len = sizeof(uint8_t);
         memcpy(_prepare_read_env->prepare_buf, &fbLed, _prepare_read_env->prepare_len); 

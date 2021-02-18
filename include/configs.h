@@ -11,8 +11,8 @@
 
 
 #define ENABLE_THEMU_CORE 
-//#define ENABLE_THEMU_LOGS
-#define ENABLE_THEMU_TEST_APP
+#define ENABLE_THEMU_LOGS
+//#define ENABLE_THEMU_TEST_APP
 //#define ENABLE_LIVE_PLOT
 
 
@@ -30,9 +30,10 @@
     #define ENABLE_THEMU_GESTURES
 #endif
 #if defined (ENABLE_THEMU_LOGS) && !defined (ENABLE_LIVE_PLOT)
-    #define ENABLE_THEMU_BLE_LOGS
-    #define ENABLE_THEMU_ADC_LOGS
-    #define ENABLE_THEMU_IMU_LOGS
+    //#define ENABLE_THEMU_BLE_LOGS
+    //#define ENABLE_THEMU_ADC_LOGS
+    //#define ENABLE_THEMU_IMU_LOGS
+    #define ENABLE_THEMU_ORIENTATION_LOGS
 #endif
 
 
