@@ -8,23 +8,26 @@
 
 #define XVERSOR_N   -1,0,0
 #define YVERSOR     0,1,0
-#define ZVERSOR     0,0,1
+#define ZVERSOR_N   0,0,-1
 
 #define VECTOR_REF  XVERSOR_N
 
-#define GST_POINTING_UP_EVT_TGR     0.8   
-#define GST_POINTING_DOWN_EVT_TGR   -0.8   
-#define GST_POINTING_FRONT_EVT_TGR  0.8   
-#define GST_POINTING_BACK_EVT_TGR   -0.8   
-#define GST_POINTING_LEFT_EVT_TGR   0.8   
-#define GST_POINTING_RIGHT_EVT_TGR  -0.8  
+#define GST_POINTING_UP_EVT_TGR     0.7   
+#define GST_POINTING_DOWN_EVT_TGR   -0.7   
+#define GST_POINTING_FRONT_EVT_TGR  0.7   
+#define GST_POINTING_BACK_EVT_TGR   -0.7   
+#define GST_POINTING_LEFT_EVT_TGR   0.7   
+#define GST_POINTING_RIGHT_EVT_TGR  -0.7  
 #define GST_FIST_BUMP_EVT_TGR       -1.8 
 #define GST_SLIDE_RIGHT_EVT_TGR     0.8
+#define GST_POS_ROLL_EVT_TGR        8
+#define GST_NEG_ROLL_EVT_TGR        -8
 
 #define GST_POINTING_UP_PLOAD_BIT       0 
 #define GST_POINTING_DOWN_PLOAD_BIT     1   
-#define GST_POINTING_FRONT_PLOAD_BIT    2   
-#define GST_POINTING_BACK_PLOAD_BIT     3   
+#define GST_POINTING_FRONT_PLOAD_BIT    2
+#define GST_NEG_ROLL_PLOAD_BIT          3   
+#define GST_POINTING_BACK_PLOAD_BIT        
 #define GST_POINTING_LEFT_PLOAD_BIT     4   
 #define GST_POINTING_RIGHT_PLOAD_BIT    5 
 #define GST_FIST_BUMP_PLOAD_BIT         6

@@ -7,6 +7,8 @@
 #include "myTimers.h"
 #include "Gesture.h"
 
+#include "MadgwickAHRS.h"
+
 /*Declare the static functions & variables*/
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
@@ -874,10 +876,15 @@ void tBLE (void *pv)
                 discardPayload(a->prepare_read_env);
             }
             timer_pause(TIMER_GROUP_0, TIMER_1);
+            timer_pause(TIMER_GROUP_0, TIMER_0);
         }
         else if(notifycount == 4)//Enable notifications.
         {
-            timer_start(TIMER_GROUP_0, TIMER_1); 
+            /*printf("Los valores al reiniciar son los siguientes:\nq0:%f q1:%f q2:%f q3:%f\npaccelx:%f paccely:%f paccelz:%f pgyrox:%f pgyroy:%f pgyroz:%f\n",q0,q1,q2,q3,
+            processedValues[accelX],processedValues[accelY],processedValues[accelZ],
+            processedValues[gyroX],processedValues[gyroY],processedValues[gyroZ]);*/
+            timer_start(TIMER_GROUP_0, TIMER_1);
+            timer_start(TIMER_GROUP_0, TIMER_0);
         }
         else
         {
