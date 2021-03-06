@@ -4,6 +4,7 @@
 #include <string.h>
 #include "configs.h"
 #include "MadgwickAHRS.h"
+#include "MPU6050.h"
 
 static esp_adc_cal_characteristics_t *adc_chars;
 
@@ -209,10 +210,13 @@ void tGPIO (void *pv)
             }
             else
             {
-                q0 = 0.0f;
-                q1 = 0.0f;
-                q2 = 0.0f;
-                q3 = 1.0f;
+                #ifdef ENABLE_THEMU_IMU
+                xTaskNotify(thMPU6050, 2, eSetValueWithOverwrite);
+                #endif
+                q0 = 0.27f;
+                q1 = 0.65f;
+                q2 = -0.27f;
+                q3 = 0.65f;
                 gpio_set_level(FB_LED_PIN, LED_ON);
                 #ifdef ENABLE_THEMU_BLE
                 xTaskNotify(thBLE, 4, eSetValueWithOverwrite);

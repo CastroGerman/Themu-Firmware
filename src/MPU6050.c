@@ -115,9 +115,10 @@ void processMPUValues(volatile double *_processed, double *_values, double *_off
 void takeOutGForceFromAccel(double *_MPU6050Values)
 {
     // This step requires to have 1 axis pointing up.
-    if (_MPU6050Values[accelX] > (1/ACCEL_SCALE)){_MPU6050Values[accelX] -= (1/ACCEL_SCALE);}
-    if (_MPU6050Values[accelY] > (1/ACCEL_SCALE)){_MPU6050Values[accelY] -= (1/ACCEL_SCALE);}
-    if (_MPU6050Values[accelZ] > (1/ACCEL_SCALE)){_MPU6050Values[accelZ] -= (1/ACCEL_SCALE);}
+    //if (_MPU6050Values[accelX] > (1/ACCEL_SCALE)){_MPU6050Values[accelX] -= (1/ACCEL_SCALE);}
+    //if (_MPU6050Values[accelY] > (1/ACCEL_SCALE)){_MPU6050Values[accelY] -= (1/ACCEL_SCALE);}
+    //if (_MPU6050Values[accelZ] > (1/ACCEL_SCALE)){_MPU6050Values[accelZ] -= (1/ACCEL_SCALE);}
+    _MPU6050Values[accelX] -= (1/ACCEL_SCALE);
 }
 
 void getMPU6050Offset(double *_offsetValues)
@@ -142,7 +143,7 @@ void getMPU6050Offset(double *_offsetValues)
 
 void printValues(double *_values)
 {
-    printf("accelX: %f\t accelY: %f\t accelZ: %f\t temp: %f\t gryoX: %f\t gryoY: %f\t gryoZ: %f\n",
+    printf("accelX: %f\t accelY: %f\t accelZ: %f\t temp: %f\t gyroX: %f\t gyroY: %f\t gyroZ: %f\n",
             _values[accelX],_values[accelY],_values[accelZ],_values[temp],_values[gyroX],_values[gyroY],_values[gyroZ]);
 }
 
@@ -173,8 +174,12 @@ void tMPU6050 (void *pv)
             printValues((double *)processedValues);
             #endif
             #ifdef ENABLE_LIVE_PLOT
-            printValues(processedValues);
+            printValues((double *)processedValues);
             #endif
+        }
+        else if (notifycount == 2)
+        {
+            //getMPU6050Offset(offsetValues);
         }
         else
         {

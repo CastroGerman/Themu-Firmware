@@ -79,6 +79,23 @@ int isSlidingRight(gesture_t *_gesture)
     return 0;
 }
 
+int isRollingPositively(gesture_t *_gesture)
+{
+    if(_gesture->imu[gyroX]>GST_POS_ROLL_EVT_TGR)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+int isRollingNegatively(gesture_t *_gesture)
+{
+    if(_gesture->imu[gyroX]<GST_NEG_ROLL_EVT_TGR)
+    {
+        return 1;
+    }
+    return 0;
+}
 
 gesture_t *createGesture(void)
 {
@@ -119,7 +136,7 @@ void analyzeGestures(gesture_t *_gesture, uint8_t *_gesturesPayload)
     setBitInByte(_gesturesPayload, GST_POINTING_UP_PLOAD_BIT, isPointingUp(vector));
     setBitInByte(_gesturesPayload, GST_POINTING_DOWN_PLOAD_BIT, isPointingDown(vector));
     setBitInByte(_gesturesPayload, GST_POINTING_FRONT_PLOAD_BIT, isPointingFront(vector));
-    setBitInByte(_gesturesPayload, GST_POINTING_BACK_PLOAD_BIT, isPointingBack(vector));
+    //setBitInByte(_gesturesPayload, GST_POINTING_BACK_PLOAD_BIT, isPointingBack(vector));
     setBitInByte(_gesturesPayload, GST_POINTING_LEFT_PLOAD_BIT, isPointingLeft(vector));
     setBitInByte(_gesturesPayload, GST_POINTING_RIGHT_PLOAD_BIT, isPointingRight(vector));
 }
@@ -143,7 +160,11 @@ void tGestures (void *pv)
             if (isSlidingRight(gesture))
             {
                 toggleBitInByte(&gesturesPayload, GST_SLIDE_RIGHT_PLOAD_BIT);
-            }  
+            }
+            if (isRollingNegatively(gesture))
+            {
+                toggleBitInByte(&gesturesPayload, GST_NEG_ROLL_PLOAD_BIT);
+            } 
         }
         else
         {
