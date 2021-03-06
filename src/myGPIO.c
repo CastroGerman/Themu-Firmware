@@ -1,20 +1,35 @@
-/**Brief:
- * GPIO 16 defined as input.
- * GPIO 17 defined as output.
- * GPIO 36 defines as channel 0 of ADC1.
- * GPIO 39 defines as channel 3 of ADC1.
- * GPIO 32 defines as channel 4 of ADC1.
- * GPIO 33 defines as channel 5 of ADC1.
- * GPIO 34 defined as channel 6 of ADC1.
- * GPIO 35 defines as channel 7 of ADC1.
- */
 #include "myGPIO.h"
 #include "myBLE.h"
 #include "myTasks.h"
 #include <string.h>
 #include "configs.h"
 #include "MadgwickAHRS.h"
+#include "MPU6050.h"
+
 static esp_adc_cal_characteristics_t *adc_chars;
+
+void setBitInByte (uint8_t *_byte, uint8_t _bit, uint8_t _status)
+{
+    *_byte &= ~(1 << _bit);
+    *_byte |= (_status << _bit);
+}
+
+uint8_t getBitInByte (uint8_t *_byte, uint8_t _bit)
+{
+    return ((*_byte >> _bit) & 1);
+}
+
+void toggleBitInByte (uint8_t *_byte, uint8_t _bit)
+{
+    if (getBitInByte(_byte, _bit) == 1)
+    {
+        setBitInByte(_byte, _bit, 0);
+    }
+    else
+    {
+        setBitInByte(_byte, _bit, 1);
+    }
+}
 
 static void check_efuse()
 {
@@ -60,11 +75,11 @@ void InitADC1 (void)
      * For maximum accuracy, use the ADC calibration APIs and measure voltages within these recommended ranges.
      */
     adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(FLEX1_CHANNEL, FLEX1_CHANNEL_ATT);
-    adc1_config_channel_atten(FLEX2_CHANNEL, FLEX2_CHANNEL_ATT);
-    adc1_config_channel_atten(FLEX3_CHANNEL, FLEX3_CHANNEL_ATT);
-    adc1_config_channel_atten(FLEX4_CHANNEL, FLEX4_CHANNEL_ATT);
-    adc1_config_channel_atten(FLEX5_CHANNEL, FLEX5_CHANNEL_ATT);
+    adc1_config_channel_atten(THUMB_FLEX_CHANNEL, THUMB_FLEX_CHANNEL_ATT);
+    adc1_config_channel_atten(INDEX_FLEX_CHANNEL, INDEX_FLEX_CHANNEL_ATT);
+    adc1_config_channel_atten(MIDDLE_FLEX_CHANNEL, MIDDLE_FLEX_CHANNEL_ATT);
+    adc1_config_channel_atten(RING_FLEX_CHANNEL, RING_FLEX_CHANNEL_ATT);
+    adc1_config_channel_atten(LITTLE_FLEX_CHANNEL, LITTLE_FLEX_CHANNEL_ATT);
     adc1_config_channel_atten(BATT_CHANNEL, BATT_CHANNEL_ATT);
     
     //Characterize ADC
@@ -115,7 +130,7 @@ void InitGPIO (void)
     gpio_config(&io_config);
 
     //Setting glove button
-    io_config.intr_type = GPIO_PIN_INTR_NEGEDGE;
+    io_config.intr_type = GPIO_PIN_INTR_POSEDGE;
     io_config.pin_bit_mask = GPIO_SEL_25;
     io_config.mode = GPIO_MODE_INPUT;
     io_config.pull_up_en = GPIO_PULLUP_ENABLE;
@@ -124,19 +139,30 @@ void InitGPIO (void)
     //change gpio intrrupt type for one pin
     //gpio_set_intr_type(GPIO_SEL_25, GPIO_INTR_ANYEDGE);
     //install gpio isr service
-    gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
+    gpio_install_isr_service(ESP_INTR_FLAG_LOWMED);//ESP_INTR_FLAG_EDGE);
     //hook isr handler for specific gpio pin
     gpio_isr_handler_add(BUTTON_PIN, glove_button_isr_handler, (void*) NULL);
 }
 
-int readPorcentualADC1Channel(adc1_channel_t _channel)
+int getBatteryLevel (void)
+{
+    adc1_channel_t _channel = BATT_CHANNEL;
+    return getADC1Channel(_channel);
+}
+
+int getFingerFlexChannel (adc1_channel_t _channel)
+{
+    return getADC1Channel(_channel);
+}
+
+int getADC1Channel (adc1_channel_t _channel)
 {
     int adcRead = 0;
     //Multisampling
-    for (int i = 0; i < NO_OF_SAMPLES; i++) {
+    for (int i = 0; i < NUM_OF_SAMPLES; i++) {
         adcRead += adc1_get_raw(_channel);
     }
-    adcRead /= NO_OF_SAMPLES;
+    adcRead /= NUM_OF_SAMPLES;
 
     #ifdef ENABLE_THEMU_ADC_LOGS
     uint32_t volts;
@@ -153,15 +179,20 @@ int readPorcentualADC1Channel(adc1_channel_t _channel)
     return adcRead;
 }
 
+/**
+ * ISR triggers twice on a single event. Problem related to:
+ * https://github.com/espressif/arduino-esp32/issues/1111
+ */
 void IRAM_ATTR glove_button_isr_handler (void *pv)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xTaskNotifyFromISR(thGPIO, 1, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
+    xTaskNotifyFromISR(thGPIO, 1, eSetValueWithoutOverwrite, &xHigherPriorityTaskWoken);
     if(xHigherPriorityTaskWoken != pdFALSE){}
 }
 
 void tGPIO (void *pv)
 {
+    gpio_set_level(FB_LED_PIN, LED_ON);
     uint32_t notifycount = 0;
     while (1)
     {
@@ -172,21 +203,25 @@ void tGPIO (void *pv)
             * Or set the GPIO mode to GPIO_MODE_INPUT_OUTPUT.*/
             if(gpio_get_level(FB_LED_PIN))
             {
-                q0 = 1.0f;
-                q1 = 0.0f;
-                q2 = 0.0f;
-                q3 = 0.0f;
                 gpio_set_level(FB_LED_PIN, LED_OFF);
+                #ifdef ENABLE_THEMU_BLE
+                xTaskNotify(thBLE, 3, eSetValueWithOverwrite);
+                #endif
             }
             else
             {
+                #ifdef ENABLE_THEMU_IMU
+                xTaskNotify(thMPU6050, 2, eSetValueWithOverwrite);
+                #endif
+                q0 = 0.27f;
+                q1 = 0.65f;
+                q2 = -0.27f;
+                q3 = 0.65f;
                 gpio_set_level(FB_LED_PIN, LED_ON);
-            }  
-            //printf("Notified GPIO 1\n");        
-        }
-        else if (notifycount == 2)
-        {
-            readPorcentualADC1Channel(ADC1_CHANNEL_3);
+                #ifdef ENABLE_THEMU_BLE
+                xTaskNotify(thBLE, 4, eSetValueWithOverwrite);
+                #endif
+            }    
         }
         else
         {

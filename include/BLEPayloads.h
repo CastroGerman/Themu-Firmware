@@ -1,18 +1,19 @@
 #ifndef BLEPAYLOADS_H_
 #define BLEPAYLOADS_H_
 
-#include "myGPIO.h"
-#include "QuaternionLib.h"
+#include "myBLE.h"
+#include "Gesture.h"
 
-void prepReadDummyBytes(int _bytes);
-void prepReadCCCD(uint16_t _cccd);
-void prepReadADC1Channel(adc1_channel_t _channel);
-void prepReadFlexSensors(void);
-void prepReadGPIOLevel(gpio_num_t _gpioNum);
-void prepReadQuaternion(quaternion_t *_quaternion);
-void prepReadFBLed(void);
-void prepReadBatteryLevel(void);
-void prepReadBLELog(char * _string);
-void discardActualPayload(void);
+
+
+void prepReadCustomBytes(prepare_type_env_t *_prepare_read_env, int _bytesLen, const uint8_t *_bytes);
+void prepReadDummyBytes(prepare_type_env_t *_prepare_read_env, int _bytes);
+void prepReadCCCD(prepare_type_env_t *_prepare_read_env, uint16_t _cccd);
+void prepReadFlexSensors(prepare_type_env_t *_prepare_read_env);
+void prepReadGestures(prepare_type_env_t *_prepare_read_env, gesture_t *_gesture, uint8_t *_gesturesPayload);
+void prepReadFBLed(prepare_type_env_t *_prepare_read_env);
+void prepReadBatteryLevel(prepare_type_env_t *_prepare_read_env);
+void prepReadBLELog(prepare_type_env_t *_prepare_read_env, char *_string);
+void discardPayload(prepare_type_env_t *_prepare);
 
 #endif
