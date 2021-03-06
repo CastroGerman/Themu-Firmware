@@ -115,9 +115,10 @@ void processMPUValues(volatile double *_processed, double *_values, double *_off
 void takeOutGForceFromAccel(double *_MPU6050Values)
 {
     // This step requires to have 1 axis pointing up.
-    if (_MPU6050Values[accelX] > (1/ACCEL_SCALE)){_MPU6050Values[accelX] -= (1/ACCEL_SCALE);}
+    //if (_MPU6050Values[accelX] > (1/ACCEL_SCALE)){_MPU6050Values[accelX] -= (1/ACCEL_SCALE);}
     //if (_MPU6050Values[accelY] > (1/ACCEL_SCALE)){_MPU6050Values[accelY] -= (1/ACCEL_SCALE);}
     //if (_MPU6050Values[accelZ] > (1/ACCEL_SCALE)){_MPU6050Values[accelZ] -= (1/ACCEL_SCALE);}
+    _MPU6050Values[accelX] -= (1/ACCEL_SCALE);
 }
 
 void getMPU6050Offset(double *_offsetValues)
@@ -178,7 +179,7 @@ void tMPU6050 (void *pv)
         }
         else if (notifycount == 2)
         {
-            getMPU6050Offset(offsetValues);
+            //getMPU6050Offset(offsetValues);
         }
         else
         {

@@ -19,9 +19,9 @@
 #define FB_LED_BLUE_PIN     GPIO_NUM_26
 #define BUTTON_PIN          GPIO_NUM_25
 
-#define FB_LED_RED_PLOAD_BIT    0
+#define FB_LED_RED_PLOAD_BIT    2
 #define FB_LED_GREEN_PLOAD_BIT  1
-#define FB_LED_BLUE_PLOAD_BIT   2
+#define FB_LED_BLUE_PLOAD_BIT   0
 
 /**Pin Reference:
  * GPIO 36 defined as channel 0 of ADC1.

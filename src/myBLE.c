@@ -876,7 +876,6 @@ void tBLE (void *pv)
                 discardPayload(a->prepare_read_env);
             }
             timer_pause(TIMER_GROUP_0, TIMER_1);
-            timer_pause(TIMER_GROUP_0, TIMER_0);
         }
         else if(notifycount == 4)//Enable notifications.
         {
@@ -884,7 +883,6 @@ void tBLE (void *pv)
             processedValues[accelX],processedValues[accelY],processedValues[accelZ],
             processedValues[gyroX],processedValues[gyroY],processedValues[gyroZ]);*/
             timer_start(TIMER_GROUP_0, TIMER_1);
-            timer_start(TIMER_GROUP_0, TIMER_0);
         }
         else
         {
