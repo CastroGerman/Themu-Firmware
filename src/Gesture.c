@@ -122,6 +122,25 @@ void updateGesture(gesture_t *_gesture, double *_imu, float _q0, float _q1, floa
     _gesture->quaternion.hamiltonForm.q3 = _q3;          
 }
 
+void updateGesture_new(gesture_t *_gesture, MPU6050_data_t *_imu, float _q0, float _q1, float _q2, float _q3)
+{
+    _gesture->imu[accelX] = _imu->ax.cooked;
+    _gesture->imu[accelY] = _imu->ay.cooked;
+    _gesture->imu[accelZ] = _imu->az.cooked;
+    _gesture->imu[gyroX] = _imu->gx.cooked;
+    _gesture->imu[gyroY] = _imu->gy.cooked;
+    _gesture->imu[gyroZ] = _imu->gz.cooked;
+    _gesture->flex[THUMB] = getFingerFlexChannel(THUMB_FLEX_CHANNEL);
+    _gesture->flex[INDEX] = getFingerFlexChannel(INDEX_FLEX_CHANNEL);
+    _gesture->flex[MIDDLE] = getFingerFlexChannel(MIDDLE_FLEX_CHANNEL);
+    _gesture->flex[RING] = getFingerFlexChannel(RING_FLEX_CHANNEL);
+    _gesture->flex[LITTLE] = getFingerFlexChannel(LITTLE_FLEX_CHANNEL);
+    _gesture->quaternion.hamiltonForm.q0 = _q0;
+    _gesture->quaternion.hamiltonForm.q1 = _q1;
+    _gesture->quaternion.hamiltonForm.q2 = _q2;
+    _gesture->quaternion.hamiltonForm.q3 = _q3;          
+}
+
 void analyzeGestures(gesture_t *_gesture, uint8_t *_gesturesPayload)
 {
     vector_t vector = {VECTOR_REF};
@@ -150,9 +169,11 @@ void tGestures (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-            MadgwickAHRSupdateIMU(processedValues[gyroX],processedValues[gyroY],processedValues[gyroZ],
-                                processedValues[accelX],processedValues[accelY],processedValues[accelZ]);
-            updateGesture(gesture, (double *)processedValues, q0, q1, q2, q3);
+            //MadgwickAHRSupdateIMU(processedValues[gyroX],processedValues[gyroY],processedValues[gyroZ], processedValues[accelX],processedValues[accelY],processedValues[accelZ]);
+            MadgwickAHRSupdateIMU(mpuData.gx.cooked, mpuData.gy.cooked, mpuData.gz.cooked, mpuData.ax.cooked, mpuData.ay.cooked, mpuData.az.cooked);
+            //updateGesture(gesture, (double *)processedValues, q0, q1, q2, q3);
+            updateGesture_new(gesture, &mpuData, q0, q1, q2, q3);
+            
             if (isPunching(gesture))
             {
                 toggleBitInByte(&gesturesPayload, GST_FIST_BUMP_PLOAD_BIT);

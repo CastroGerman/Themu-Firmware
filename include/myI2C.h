@@ -4,8 +4,8 @@
 #include <driver/i2c.h>
 #include <esp_log.h>
 
-#define PIN_SDA 21
-#define PIN_CLK 22
+#define PIN_SDA 18
+#define PIN_CLK 16
 #define MASTER_CLK_SPEED 100000
 
 #define ACK     (0)

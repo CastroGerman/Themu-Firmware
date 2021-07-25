@@ -5,12 +5,12 @@
 #include "myGPIO.h"
 #include "QuaternionLib.h"
 
-
+#define XVERSOR     1,0,0
 #define XVERSOR_N   -1,0,0
 #define YVERSOR     0,1,0
 #define ZVERSOR_N   0,0,-1
 
-#define VECTOR_REF  XVERSOR_N
+#define VECTOR_REF  XVERSOR
 
 #define GST_POINTING_UP_EVT_TGR     0.707   
 #define GST_POINTING_DOWN_EVT_TGR   -0.707   
@@ -54,5 +54,6 @@ gesture_t *createGesture(void);
 void updateGesture(gesture_t *_gesture, double *_imu, float _q0, float _q1, float _q2, float _q3);
 void analyzeGestures(gesture_t *_gesture, uint8_t *_gesturesPayload);
 void tGestures (void *pv);
+void updateGesture_new(gesture_t *_gesture, MPU6050_data_t *_imu, float _q0, float _q1, float _q2, float _q3);
 
 #endif

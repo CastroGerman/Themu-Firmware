@@ -213,10 +213,10 @@ void tGPIO (void *pv)
                 #ifdef ENABLE_THEMU_IMU
                 xTaskNotify(thMPU6050, 2, eSetValueWithOverwrite);
                 #endif
-                q0 = 0.27f;
-                q1 = 0.65f;
-                q2 = -0.27f;
-                q3 = 0.65f;
+                q0 = 0.00f;
+                q1 = 0.71f;
+                q2 = 0.71f;
+                q3 = 0.00f;
                 gpio_set_level(FB_LED_PIN, LED_ON);
                 #ifdef ENABLE_THEMU_BLE
                 xTaskNotify(thBLE, 4, eSetValueWithOverwrite);
