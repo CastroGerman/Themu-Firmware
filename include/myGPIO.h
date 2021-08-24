@@ -7,8 +7,8 @@
 
 #define DEFAULT_VREF    1100        //[mV]. Use adc2_vref_to_gpio() to obtain a better estimate
 #define NUM_OF_SAMPLES   64          //Multisampling
-#define ADC_CAL_MAX     (int)4100   //To be defined in the calibration process into a struct.
-#define ADC_CAL_MIN     (int)2600
+#define ADC_CAL_MAX     (int)2700   //To be defined in the calibration process into a struct.
+#define ADC_CAL_MIN     (int)2050
 #define FB_LED_PIN      GPIO_NUM_2
 
 #define LED_ON  1
@@ -39,12 +39,12 @@
 #define LITTLE_FLEX_CHANNEL ADC1_CHANNEL_5
 #define BATT_CHANNEL        ADC1_CHANNEL_0
 
-#define THUMB_FLEX_CHANNEL_ATT  ADC_ATTEN_DB_6//ADC_ATTEN_DB_0
-#define INDEX_FLEX_CHANNEL_ATT  ADC_ATTEN_DB_6//ADC_ATTEN_DB_2_5
-#define MIDDLE_FLEX_CHANNEL_ATT ADC_ATTEN_DB_6//ADC_ATTEN_DB_11
-#define RING_FLEX_CHANNEL_ATT   ADC_ATTEN_DB_6
-#define LITTLE_FLEX_CHANNEL_ATT ADC_ATTEN_DB_6
-#define BATT_CHANNEL_ATT        ADC_ATTEN_DB_6
+#define THUMB_FLEX_CHANNEL_ATT  ADC_ATTEN_DB_11//ADC_ATTEN_DB_0
+#define INDEX_FLEX_CHANNEL_ATT  ADC_ATTEN_DB_11//ADC_ATTEN_DB_2_5
+#define MIDDLE_FLEX_CHANNEL_ATT ADC_ATTEN_DB_11//ADC_ATTEN_DB_11
+#define RING_FLEX_CHANNEL_ATT   ADC_ATTEN_DB_11
+#define LITTLE_FLEX_CHANNEL_ATT ADC_ATTEN_DB_11
+#define BATT_CHANNEL_ATT        ADC_ATTEN_DB_11
 
 #define FINGERS 5
 #define THUMB   4

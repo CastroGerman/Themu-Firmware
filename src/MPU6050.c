@@ -231,8 +231,6 @@ void tMPU6050 (void *pv)
     //double mpuValues[MPU6050_16BITS_REGS];
     //double offsetValues[MPU6050_16BITS_REGS];
 
-    
-
     getMPU6050Offset_new(&mpuData);
     //getMPU6050Offset(offsetValues);
 	while(1) {
@@ -243,22 +241,16 @@ void tMPU6050 (void *pv)
             //getMPUValuesFromRegs(mpuValues, mpuRegs);
             //processMPUValues(processedValues, mpuValues, offsetValues);
             getMPU6050CookedValues(&mpuData);
-            /*printf("MPU Values:\n");
-            printRaw(&newData);
-            printf("Offset Values:\n");
-            printOffset(&newData);
-            printf("Cooked Values:\n");
-            printCooked(&newData);*/
-
+            
             xTaskNotify(thGestures, 1, eSetValueWithOverwrite);
             
             #ifdef ENABLE_THEMU_IMU_LOGS
             printf("MPU Values:\n");
-            printValues(mpuValues);
+            printRaw(&mpuData);
             printf("Offset Values:\n");
-            printValues(offsetValues);
-            printf("Processed Values:\n");
-            printValues((double *)processedValues);
+            printOffset(&mpuData);
+            printf("Cooked Values:\n");
+            printCooked(&mpuData);
             #endif
             #ifdef ENABLE_LIVE_PLOT
             printValues((double *)processedValues);

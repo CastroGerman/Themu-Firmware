@@ -10,7 +10,7 @@
 #define YVERSOR     0,1,0
 #define ZVERSOR_N   0,0,-1
 
-#define VECTOR_REF  XVERSOR
+#define VECTOR_REF  XVERSOR_N
 
 #define GST_POINTING_UP_EVT_TGR     0.707   
 #define GST_POINTING_DOWN_EVT_TGR   -0.707   

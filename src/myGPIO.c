@@ -214,8 +214,8 @@ void tGPIO (void *pv)
                 xTaskNotify(thMPU6050, 2, eSetValueWithOverwrite);
                 #endif
                 q0 = 0.00f;
-                q1 = 0.71f;
-                q2 = 0.71f;
+                q1 = 0.00f;
+                q2 = 1.00f;
                 q3 = 0.00f;
                 gpio_set_level(FB_LED_PIN, LED_ON);
                 #ifdef ENABLE_THEMU_BLE
