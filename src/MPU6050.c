@@ -4,6 +4,81 @@
 #include "configs.h"
 
 volatile double processedValues[MPU6050_16BITS_REGS];
+MPU6050_data_t mpuData;
+
+//----------------------------------NEW FUNCS-----------------------------------
+void readMPU6050Values(MPU6050_data_t *_valuesRead)
+{   
+    uint8_t mpuRegs[MPU6050_8BITS_REGS];
+    readMPU6050Regs(mpuRegs);
+    _valuesRead->ax.raw = (int16_t) ((mpuRegs[accelX_H] << 8) | mpuRegs[accelX_L]);
+    _valuesRead->ay.raw = (int16_t) ((mpuRegs[accelY_H] << 8) | mpuRegs[accelY_L]);
+    _valuesRead->az.raw = (int16_t) ((mpuRegs[accelZ_H] << 8) | mpuRegs[accelZ_L]);
+    _valuesRead->temp.raw = (int16_t) ((mpuRegs[temp_H] << 8) | mpuRegs[temp_L]);
+    _valuesRead->gx.raw = (int16_t) ((mpuRegs[gyroX_H] << 8) | mpuRegs[gyroX_L]);
+    _valuesRead->gy.raw = (int16_t) ((mpuRegs[gyroY_H] << 8) | mpuRegs[gyroY_L]);
+    _valuesRead->gz.raw = (int16_t) ((mpuRegs[gyroZ_H] << 8) | mpuRegs[gyroZ_L]);
+}
+void takeOutGForceFromAccel_new(MPU6050_data_t *_offsetValues)
+{
+    // This step requires to have 1 axis pointing up.
+    //if (_MPU6050Values[accelX] > (1/ACCEL_SCALE)){_MPU6050Values[accelX] -= (1/ACCEL_SCALE);}
+    //if (_MPU6050Values[accelY] > (1/ACCEL_SCALE)){_MPU6050Values[accelY] -= (1/ACCEL_SCALE);}
+    //if (_MPU6050Values[accelZ] > (1/ACCEL_SCALE)){_MPU6050Values[accelZ] -= (1/ACCEL_SCALE);}
+    _offsetValues->az.offset += (1/ACCEL_SCALE);
+}
+void getMPU6050Offset_new(MPU6050_data_t *_offsetValues)
+{   
+    MPU6050_data_t mpuValues;
+    for (int i = 0; i < CAL_ITERATIONS; i++)
+    {
+        readMPU6050Values(&mpuValues);
+        _offsetValues->ax.offset += ((double)mpuValues.ax.raw / CAL_ITERATIONS);
+        _offsetValues->ay.offset += ((double)mpuValues.ay.raw / CAL_ITERATIONS);
+        _offsetValues->az.offset += ((double)mpuValues.az.raw / CAL_ITERATIONS);
+        _offsetValues->temp.offset += ((double)mpuValues.temp.raw / CAL_ITERATIONS);
+        _offsetValues->gx.offset += ((double)mpuValues.gx.raw / CAL_ITERATIONS);
+        _offsetValues->gy.offset += ((double)mpuValues.gy.raw / CAL_ITERATIONS);
+        _offsetValues->gz.offset += ((double)mpuValues.gz.raw / CAL_ITERATIONS);
+    }  
+    takeOutGForceFromAccel_new(_offsetValues);
+}
+
+void getMPU6050CookedValues(MPU6050_data_t *_data)
+{
+    readMPU6050Values(_data);
+    // Read gyro values and convert to Radians per second
+    _data->gx.cooked = ((double)_data->gx.raw - _data->gx.offset) * DEG_TO_RAD * GYRO_SCALE;
+    _data->gy.cooked = ((double)_data->gy.raw - _data->gy.offset) * DEG_TO_RAD * GYRO_SCALE;
+    _data->gz.cooked = ((double)_data->gz.raw - _data->gz.offset) * DEG_TO_RAD * GYRO_SCALE;
+    // As datasheet says:
+    // Temperature in degrees C = (TEMP_OUT Register Value as a signed quantity)/340 + 36.53
+    // As I say:
+    _data->temp.cooked = ((double)_data->temp.raw - _data->temp.offset) * TEMP_SCALE;
+    // Read accel values and convert to G force.
+    _data->ax.cooked = ((double)_data->ax.raw - _data->ax.offset) * ACCEL_SCALE;
+    _data->ay.cooked = ((double)_data->ay.raw - _data->ay.offset) * ACCEL_SCALE;
+    _data->az.cooked = ((double)_data->az.raw - _data->az.offset) * ACCEL_SCALE;
+}
+
+void printRaw(MPU6050_data_t *_values)
+{
+    printf("accelX: %d\t accelY: %d\t accelZ: %d\t temp: %d\t gyroX: %d\t gyroY: %d\t gyroZ: %d\n",
+            _values->ax.raw,_values->ay.raw,_values->az.raw,_values->temp.raw,_values->gx.raw,_values->gy.raw,_values->gz.raw);
+}
+void printOffset(MPU6050_data_t *_values)
+{
+    printf("accelX: %f\t accelY: %f\t accelZ: %f\t temp: %f\t gyroX: %f\t gyroY: %f\t gyroZ: %f\n",
+            _values->ax.offset,_values->ay.offset,_values->az.offset,_values->temp.offset,_values->gx.offset,_values->gy.offset,_values->gz.offset);
+}
+void printCooked(MPU6050_data_t *_values)
+{
+    printf("accelX: %f\t accelY: %f\t accelZ: %f\t temp: %f\t gyroX: %f\t gyroY: %f\t gyroZ: %f\n",
+            _values->ax.cooked,_values->ay.cooked,_values->az.cooked,_values->temp.cooked,_values->gx.cooked,_values->gy.cooked,_values->gz.cooked);
+}
+
+//-------------------------------END NEW FUNCS-----------------------------------
+
 
 void InitMPU6050 (void)
 {
@@ -50,8 +125,10 @@ void InitMPU6050 (void)
 	i2c_cmd_link_delete(cmd); 
 }
 
+
 void readMPU6050Regs(uint8_t *_mpuRegs)
 {
+
     i2c_cmd_handle_t cmd;	
     cmd = i2c_cmd_link_create();
     ESP_ERROR_CHECK(i2c_master_start(cmd));
@@ -118,7 +195,7 @@ void takeOutGForceFromAccel(double *_MPU6050Values)
     //if (_MPU6050Values[accelX] > (1/ACCEL_SCALE)){_MPU6050Values[accelX] -= (1/ACCEL_SCALE);}
     //if (_MPU6050Values[accelY] > (1/ACCEL_SCALE)){_MPU6050Values[accelY] -= (1/ACCEL_SCALE);}
     //if (_MPU6050Values[accelZ] > (1/ACCEL_SCALE)){_MPU6050Values[accelZ] -= (1/ACCEL_SCALE);}
-    _MPU6050Values[accelX] -= (1/ACCEL_SCALE);
+    _MPU6050Values[accelZ] += (1/ACCEL_SCALE);
 }
 
 void getMPU6050Offset(double *_offsetValues)
@@ -150,28 +227,30 @@ void printValues(double *_values)
 void tMPU6050 (void *pv)
 {
     uint32_t notifycount = 0;
-  	uint8_t mpuRegs[MPU6050_8BITS_REGS];
-    double mpuValues[MPU6050_16BITS_REGS];
-    double offsetValues[MPU6050_16BITS_REGS];
+  	//uint8_t mpuRegs[MPU6050_8BITS_REGS];
+    //double mpuValues[MPU6050_16BITS_REGS];
+    //double offsetValues[MPU6050_16BITS_REGS];
 
-    getMPU6050Offset(offsetValues);
+    getMPU6050Offset_new(&mpuData);
+    //getMPU6050Offset(offsetValues);
 	while(1) {
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-            readMPU6050Regs(mpuRegs);
-            getMPUValuesFromRegs(mpuValues, mpuRegs);
-            processMPUValues(processedValues, mpuValues, offsetValues);
+            //readMPU6050Regs(mpuRegs);
+            //getMPUValuesFromRegs(mpuValues, mpuRegs);
+            //processMPUValues(processedValues, mpuValues, offsetValues);
+            getMPU6050CookedValues(&mpuData);
             
             xTaskNotify(thGestures, 1, eSetValueWithOverwrite);
             
             #ifdef ENABLE_THEMU_IMU_LOGS
             printf("MPU Values:\n");
-            printValues(mpuValues);
+            printRaw(&mpuData);
             printf("Offset Values:\n");
-            printValues(offsetValues);
-            printf("Processed Values:\n");
-            printValues((double *)processedValues);
+            printOffset(&mpuData);
+            printf("Cooked Values:\n");
+            printCooked(&mpuData);
             #endif
             #ifdef ENABLE_LIVE_PLOT
             printValues((double *)processedValues);

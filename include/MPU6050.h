@@ -58,7 +58,7 @@
 
 typedef enum
 {
-    accelX_H = 0,
+    accelX_H,
     accelX_L,
     accelY_H,
     accelY_L,
@@ -76,7 +76,7 @@ typedef enum
 
 typedef enum 
 {
-    accelX = 0,
+    accelX,
     accelY,
     accelZ,
     temp,
@@ -85,6 +85,20 @@ typedef enum
     gyroZ
 }MPU6050_16BitsRegsIdx_t;
 
+
+typedef struct {
+	int16_t raw;
+    double offset;
+    volatile double cooked;
+} Measurement_t;
+
+typedef struct {
+	Measurement_t ax, ay, az;
+    Measurement_t temp;
+	Measurement_t gx, gy, gz;
+} MPU6050_data_t;
+
+extern MPU6050_data_t mpuData;
 extern volatile double processedValues[MPU6050_16BITS_REGS];
 
 void InitMPU6050 (void);
