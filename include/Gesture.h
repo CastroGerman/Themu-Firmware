@@ -18,8 +18,8 @@
 #define GST_POINTING_BACK_EVT_TGR   -0.707   
 #define GST_POINTING_LEFT_EVT_TGR   0.707   
 #define GST_POINTING_RIGHT_EVT_TGR  -0.707  
-#define GST_FIST_BUMP_EVT_TGR       -1.8 
-#define GST_SLIDE_RIGHT_EVT_TGR     0.8
+#define GST_FIST_BUMP_EVT_TGR       -1.65 
+#define GST_SLIDE_RIGHT_EVT_TGR     1.3
 #define GST_POS_ROLL_EVT_TGR        8
 #define GST_NEG_ROLL_EVT_TGR        -8
 
