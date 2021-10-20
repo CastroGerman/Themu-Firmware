@@ -169,9 +169,7 @@ void tGestures (void *pv)
         notifycount = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if(notifycount == 1)
         {
-            //MadgwickAHRSupdateIMU(processedValues[gyroX],processedValues[gyroY],processedValues[gyroZ], processedValues[accelX],processedValues[accelY],processedValues[accelZ]);
-            MadgwickAHRSupdateIMU(mpuData.gx.cooked, mpuData.gy.cooked, mpuData.gz.cooked, mpuData.ax.cooked, mpuData.ay.cooked, mpuData.az.cooked);
-            //updateGesture(gesture, (double *)processedValues, q0, q1, q2, q3);
+            //MadgwickAHRSupdateIMU(mpuData.gx.cooked, mpuData.gy.cooked, mpuData.gz.cooked, mpuData.ax.cooked, mpuData.ay.cooked, mpuData.az.cooked);
             updateGesture_new(gesture, &mpuData, q0, q1, q2, q3);
             
             if (isPunching(gesture))

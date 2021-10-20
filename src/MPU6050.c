@@ -2,6 +2,7 @@
 #include "myI2C.h"
 #include "myTasks.h"
 #include "configs.h"
+#include "MadgwickAHRS.h"
 
 volatile double processedValues[MPU6050_16BITS_REGS];
 MPU6050_data_t mpuData;
@@ -241,7 +242,8 @@ void tMPU6050 (void *pv)
             //getMPUValuesFromRegs(mpuValues, mpuRegs);
             //processMPUValues(processedValues, mpuValues, offsetValues);
             getMPU6050CookedValues(&mpuData);
-            
+            MadgwickAHRSupdateIMU(mpuData.gx.cooked, mpuData.gy.cooked, mpuData.gz.cooked, mpuData.ax.cooked, mpuData.ay.cooked, mpuData.az.cooked);
+
             xTaskNotify(thGestures, 1, eSetValueWithOverwrite);
             
             #ifdef ENABLE_THEMU_IMU_LOGS
